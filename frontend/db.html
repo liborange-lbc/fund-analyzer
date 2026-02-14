@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>数据库管理 - 基金指数分析系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Flatpickr 日期选择 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css" />
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <!-- 顶部导航（厂字型上横） -->
+      <header class="border-b border-slate-800 pb-2 mb-4">
+        <div class="flex items-center justify-between">
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight">
+            基金指数分析系统
+          </h1>
+          <nav class="flex rounded-full bg-slate-900/80 border border-slate-800 p-1 text-sm">
+            <a
+              href="/"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              指数分析
+            </a>
+            <a
+              href="/static/sync.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              基础数据
+            </a>
+            <a
+              href="/static/db.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium bg-slate-100 text-slate-900 shadow-sm"
+            >
+              数据管理
+            </a>
+            <a
+              href="/static/notify.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              公众号通知
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      <!-- 数据管理页顶部说明 -->
+      <section class="mb-2">
+        <p class="text-slate-400 text-sm">
+          查看当前数据库中的表结构、数据以及所有 INSERT / UPDATE / DELETE 操作日志。
+        </p>
+      </section>
+
+      <main class="grid gap-6 lg:grid-cols-[minmax(0,260px)_minmax(0,1.4fr)]">
+        <!-- 左侧：表列表 -->
+        <section
+          class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3 shadow-lg shadow-slate-950/40"
+        >
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-100">
+              数据表列表
+            </h2>
+            <button
+              id="btn-refresh-tables"
+              class="text-xs text-slate-400 hover:text-slate-100"
+            >
+              刷新
+            </button>
+          </div>
+          <div id="tables-list" class="space-y-1 max-h-80 overflow-y-auto pr-1 text-sm">
+            <!-- filled by JS -->
+          </div>
+        </section>
+
+        <!-- 右侧：表数据 + 操作日志 -->
+        <section class="space-y-4">
+          <!-- 表数据 -->
+          <div
+            class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3 shadow-lg shadow-slate-950/40 overflow-hidden"
+          >
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 id="current-table-title" class="text-sm font-semibold text-slate-100">
+                  请选择左侧一张表
+                </h2>
+                <p id="current-table-meta" class="text-xs text-slate-400 mt-0.5"></p>
+              </div>
+              <div class="flex items-center gap-2 text-xs text-slate-400">
+                <span>每页 50 条</span>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto max-h-[260px] border border-slate-800/80 rounded-md">
+              <table class="min-w-full text-xs text-left text-slate-200">
+                <thead
+                  id="table-head"
+                  class="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-800"
+                ></thead>
+                <tbody id="table-body" class="divide-y divide-slate-800/80">
+                  <!-- filled by JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 text-xs text-slate-300">
+              <div id="pager-info"></div>
+              <div class="flex items-center gap-2">
+                <button
+                  id="btn-prev-page"
+                  class="px-2 py-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled
+                >
+                  上一页
+                </button>
+                <button
+                  id="btn-next-page"
+                  class="px-2 py-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 操作日志 -->
+          <div
+            class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3 shadow-lg shadow-slate-950/40 overflow-hidden"
+          >
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-sm font-semibold text-slate-100">操作审计日志</h2>
+                <p id="log-meta" class="text-xs text-slate-400 mt-0.5"></p>
+              </div>
+              <div class="flex items-center gap-2 text-xs text-slate-300">
+                <label for="select-log-table" class="whitespace-nowrap">按表筛选：</label>
+                <select
+                  id="select-log-table"
+                  class="rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="">全部表</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto max-h-[220px] border border-slate-800/80 rounded-md">
+              <table class="min-w-full text-xs text-left text-slate-200">
+                <thead
+                  class="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-800"
+                >
+                  <tr>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">时间</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">表名</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">操作</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">操作人</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">主键</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">详情</th>
+                  </tr>
+                </thead>
+                <tbody id="logs-body" class="divide-y divide-slate-800/80">
+                  <!-- filled by JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 text-xs text-slate-300">
+              <div id="logs-pager-info"></div>
+              <div class="flex items-center gap-2">
+                <button
+                  id="btn-prev-log"
+                  class="px-2 py-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled
+                >
+                  上一页
+                </button>
+                <button
+                  id="btn-next-log"
+                  class="px-2 py-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <div id="toast-container" class="fixed inset-x-0 top-4 flex justify-center pointer-events-none"></div>
+    </div>
+
+    <script>
+      const apiBase = "";
+      const PAGE_SIZE = 50;
+      const LOG_PAGE_SIZE = 50;
+
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toast-container");
+        const el = document.createElement("div");
+        el.className =
+          "pointer-events-auto rounded-md px-4 py-2 text-sm shadow-lg border " +
+          (type === "error"
+            ? "bg-red-900/90 border-red-600 text-red-100"
+            : type === "success"
+            ? "bg-emerald-900/90 border-emerald-600 text-emerald-100"
+            : "bg-slate-900/90 border-slate-700 text-slate-100");
+        el.textContent = message;
+        container.appendChild(el);
+        setTimeout(() => {
+          el.classList.add("opacity-0", "translate-y-2");
+          el.addEventListener("transitionend", () => el.remove(), { once: true });
+        }, 2500);
+      }
+
+      async function apiFetch(path, options = {}) {
+        const resp = await fetch(apiBase + path, {
+          headers: { "Content-Type": "application/json", ...options.headers },
+          ...options,
+        });
+        if (!resp.ok) {
+          let detail = "";
+          try {
+            const data = await resp.json();
+            detail = data.detail || JSON.stringify(data);
+          } catch (e) {
+            detail = resp.statusText;
+          }
+          throw new Error(detail || `请求失败：${resp.status}`);
+        }
+        if (resp.status === 204) return null;
+        try {
+          return await resp.json();
+        } catch (e) {
+          return null;
+        }
+      }
+
+      const tablesListEl = document.getElementById("tables-list");
+      const tableHeadEl = document.getElementById("table-head");
+      const tableBodyEl = document.getElementById("table-body");
+      const pagerInfoEl = document.getElementById("pager-info");
+      const btnPrevPage = document.getElementById("btn-prev-page");
+      const btnNextPage = document.getElementById("btn-next-page");
+      const currentTableTitleEl = document.getElementById("current-table-title");
+      const currentTableMetaEl = document.getElementById("current-table-meta");
+
+      const logsBodyEl = document.getElementById("logs-body");
+      const logsPagerInfoEl = document.getElementById("logs-pager-info");
+      const logMetaEl = document.getElementById("log-meta");
+      const btnPrevLog = document.getElementById("btn-prev-log");
+      const btnNextLog = document.getElementById("btn-next-log");
+      const selectLogTableEl = document.getElementById("select-log-table");
+
+      let currentTable = null;
+      let currentOffset = 0;
+      let currentTotal = 0;
+      let currentColumns = [];
+      let currentPrimaryKey = null;
+      let editingRowId = null;
+      let editingRowData = null;
+
+      let logOffset = 0;
+      let logTotal = 0;
+
+      function renderTablesList(tables) {
+        tablesListEl.innerHTML = "";
+        if (!tables || tables.length === 0) {
+          tablesListEl.innerHTML =
+            '<p class="text-xs text-slate-400">当前数据库中没有任何表。</p>';
+          return;
+        }
+        tables.forEach((t) => {
+          const btn = document.createElement("button");
+          btn.className =
+            "w-full flex items-center justify-between rounded-md px-3 py-2 text-left hover:bg-slate-800/80 border border-transparent hover:border-slate-700";
+          btn.innerHTML = `
+            <div class="flex flex-col">
+              <span class="text-xs font-medium text-slate-100">${t.name}</span>
+              <span class="text-[11px] text-slate-400">共 ${t.row_count} 行</span>
+            </div>
+          `;
+          btn.addEventListener("click", () => {
+            currentTable = t.name;
+            currentOffset = 0;
+            currentPrimaryKey = null; // 切换表时重置主键
+            editingRowId = null; // 切换表时取消编辑
+            editingRowData = null;
+            loadTableRows();
+          });
+          tablesListEl.appendChild(btn);
+        });
+      }
+
+      function renderTableRows(data) {
+        currentTotal = data.total;
+        const cols = data.columns || [];
+        const rows = data.rows || [];
+
+        if (!currentTable) {
+          currentTableTitleEl.textContent = "请选择左侧一张表";
+          currentTableMetaEl.textContent = "";
+        } else {
+          currentTableTitleEl.textContent = `表：${currentTable}`;
+          currentTableMetaEl.textContent = `共 ${currentTotal} 行，当前第 ${
+            Math.floor(currentOffset / PAGE_SIZE) + 1
+          } 页`;
+        }
+
+        tableHeadEl.innerHTML = "";
+        tableBodyEl.innerHTML = "";
+
+        if (cols.length === 0) {
+          tableBodyEl.innerHTML =
+            '<tr><td class="px-3 py-3 text-center text-xs text-slate-400">该表暂无数据。</td></tr>';
+          pagerInfoEl.textContent = "";
+          btnPrevPage.disabled = true;
+          btnNextPage.disabled = true;
+          return;
+        }
+
+        const trHead = document.createElement("tr");
+        cols.forEach((c) => {
+          const th = document.createElement("th");
+          th.className = "px-3 py-2 font-medium whitespace-nowrap";
+          th.textContent = c;
+          trHead.appendChild(th);
+        });
+        // 只有 indices 表才添加操作列
+        const tableNameLower = (currentTable || "").toLowerCase();
+        const isIndicesTable = tableNameLower === "indices";
+        if (isIndicesTable) {
+          const thAction = document.createElement("th");
+          thAction.className = "px-3 py-2 font-medium whitespace-nowrap";
+          thAction.textContent = "操作";
+          trHead.appendChild(thAction);
+        }
+        tableHeadEl.appendChild(trHead);
+
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-800/40";
+          const rowId = currentPrimaryKey ? row[currentPrimaryKey] : null;
+          const isEditing = editingRowId !== null && editingRowId === rowId;
+
+          cols.forEach((c) => {
+            const td = document.createElement("td");
+            td.className = "px-3 py-1.5 whitespace-nowrap";
+            const val = row[c];
+            
+            const tableNameLower = (currentTable || "").toLowerCase();
+            const isIndicesTable = tableNameLower === "indices";
+            // 只有 indices 表的 start_date 字段可以编辑
+            const canEdit = isIndicesTable && isEditing && c !== currentPrimaryKey && c === "start_date";
+            
+            if (canEdit) {
+              // 编辑模式：显示输入框
+              const input = document.createElement("input");
+              if (c === "start_date") {
+                input.type = "text";
+                input.readOnly = true;
+                input.placeholder = "选择日期";
+                input.className = "w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100 cursor-pointer db-date-input";
+              } else {
+                input.type = typeof val === "number" ? "number" : "text";
+                input.className = "w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100";
+              }
+              if (c === "start_date" && val) {
+                const dateVal = typeof val === "string" ? val : String(val);
+                input.value = dateVal.split(" ")[0];
+              } else if (c !== "start_date") {
+                input.value = val === null || val === undefined ? "" : String(val);
+              }
+              input.dataset.column = c;
+              td.appendChild(input);
+            } else {
+              // 显示模式：显示文本
+              if (isEditing && isIndicesTable && c !== currentPrimaryKey && c !== "start_date") {
+                // indices 表编辑模式下，非 start_date 字段显示为只读样式
+                td.className += " text-slate-500";
+                td.textContent =
+                  val === null || val === undefined
+                    ? ""
+                    : typeof val === "number"
+                    ? val
+                    : String(val);
+              } else {
+                td.textContent =
+                  val === null || val === undefined
+                    ? ""
+                    : typeof val === "number"
+                    ? val
+                    : String(val);
+              }
+            }
+            tr.appendChild(td);
+          });
+
+          // 只有 indices 表才显示操作列
+          const tableNameLower = (currentTable || "").toLowerCase();
+          const isIndicesTable = tableNameLower === "indices";
+          if (isIndicesTable) {
+            const tdAction = document.createElement("td");
+            tdAction.className = "px-3 py-1.5 whitespace-nowrap";
+            
+            if (isEditing) {
+              // 编辑模式：显示保存和取消按钮
+              const btnSave = document.createElement("button");
+              btnSave.className = "px-2 py-1 text-xs rounded bg-emerald-600 hover:bg-emerald-500 text-white mr-1";
+              btnSave.textContent = "保存";
+              btnSave.addEventListener("click", () => saveRow(rowId, tr));
+              
+              const btnCancel = document.createElement("button");
+              btnCancel.className = "px-2 py-1 text-xs rounded bg-slate-600 hover:bg-slate-500 text-white";
+              btnCancel.textContent = "取消";
+              btnCancel.addEventListener("click", () => cancelEdit());
+              
+              tdAction.appendChild(btnSave);
+              tdAction.appendChild(btnCancel);
+            } else {
+              // 显示模式：显示编辑按钮
+              if (currentPrimaryKey && rowId !== null && rowId !== undefined) {
+                // 有主键：显示编辑按钮（indices 表只允许编辑 start_date）
+                const btnEdit = document.createElement("button");
+                btnEdit.className = "px-2 py-1 text-xs rounded bg-indigo-600 hover:bg-indigo-500 text-white";
+                btnEdit.textContent = "编辑";
+                btnEdit.addEventListener("click", () => startEdit(rowId, row, tr));
+                tdAction.appendChild(btnEdit);
+              } else {
+                // 没有主键或主键值为空：显示提示
+                tdAction.innerHTML = '<span class="text-xs text-slate-400">-</span>';
+              }
+            }
+            
+            tr.appendChild(tdAction);
+          }
+          tableBodyEl.appendChild(tr);
+        });
+
+        const pageIndex = Math.floor(currentOffset / PAGE_SIZE) + 1;
+        const pageCount = Math.max(1, Math.ceil(currentTotal / PAGE_SIZE));
+        const start = currentTotal === 0 ? 0 : currentOffset + 1;
+        const end = Math.min(currentOffset + PAGE_SIZE, currentTotal);
+
+        pagerInfoEl.textContent = `第 ${pageIndex} / ${pageCount} 页，显示第 ${start}–${end} 行，共 ${currentTotal} 行`;
+
+        btnPrevPage.disabled = currentOffset <= 0;
+        btnNextPage.disabled = currentOffset + PAGE_SIZE >= currentTotal;
+
+        // 为动态生成的日期输入框初始化 Flatpickr
+        setTimeout(function initDatePickers() {
+          document.querySelectorAll(".db-date-input").forEach(function (el) {
+            if (el._flatpickr) return;
+            flatpickr(el, {
+              locale: "zh",
+              dateFormat: "Y-m-d",
+              allowInput: false,
+            });
+          });
+        }, 0);
+      }
+
+      async function loadTables() {
+        try {
+          const data = await apiFetch("/admin/tables");
+          renderTablesList(data);
+          // 同步更新日志筛选下拉
+          selectLogTableEl.innerHTML = '<option value="">全部表</option>';
+          data.forEach((t) => {
+            const opt = document.createElement("option");
+            opt.value = t.name;
+            opt.textContent = t.name;
+            selectLogTableEl.appendChild(opt);
+          });
+        } catch (e) {
+          showToast(e.message || "加载表列表失败", "error");
+        }
+      }
+
+      async function loadTableRows() {
+        if (!currentTable) return;
+        try {
+          // 先加载主键信息（如果还没有）
+          if (!currentPrimaryKey) {
+            try {
+              const pkData = await apiFetch(
+                `/admin/tables/${encodeURIComponent(currentTable)}/primary_key`
+              );
+              currentPrimaryKey = Array.isArray(pkData.primary_key) 
+                ? pkData.primary_key[0] 
+                : pkData.primary_key;
+            } catch (e) {
+              console.warn("无法获取主键信息:", e.message);
+              currentPrimaryKey = null;
+            }
+          }
+          
+          // 然后加载表数据并渲染
+          const data = await apiFetch(
+            `/admin/tables/${encodeURIComponent(currentTable)}/rows?offset=${currentOffset}&limit=${PAGE_SIZE}`
+          );
+          currentColumns = data.columns || [];
+          renderTableRows(data);
+        } catch (e) {
+          showToast(e.message || "加载表数据失败", "error");
+        }
+      }
+
+      function startEdit(rowId, rowData, trElement) {
+        editingRowId = rowId;
+        editingRowData = { ...rowData };
+        loadTableRows(); // 重新渲染以显示编辑模式
+      }
+
+      function cancelEdit() {
+        editingRowId = null;
+        editingRowData = null;
+        loadTableRows(); // 重新渲染以退出编辑模式
+      }
+
+      async function saveRow(rowId, trElement) {
+        if (!currentTable || !currentPrimaryKey) {
+          showToast("无法保存：缺少主键信息", "error");
+          return;
+        }
+
+        // 收集编辑后的数据
+        const inputs = trElement.querySelectorAll("input[data-column]");
+        const updates = {};
+        
+        inputs.forEach((input) => {
+          const col = input.dataset.column;
+          let val = input.value.trim();
+          
+          // 跳过主键列
+          if (col === currentPrimaryKey) return;
+          
+          // 处理日期字段
+          if (col === "start_date" || col.includes("date") || col.includes("Date")) {
+            if (val === "") {
+              updates[col] = null;
+            } else {
+              // 日期字段直接使用字符串值（YYYY-MM-DD 格式）
+              updates[col] = val;
+            }
+          } else {
+            // 处理空值和类型转换
+            if (val === "") {
+              updates[col] = null;
+            } else {
+              // 尝试转换为数字（如果原值是数字类型）
+              const originalVal = editingRowData[col];
+              if (typeof originalVal === "number") {
+                const numVal = parseFloat(val);
+                if (!isNaN(numVal)) {
+                  updates[col] = numVal;
+                } else {
+                  updates[col] = val;
+                }
+              } else {
+                updates[col] = val;
+              }
+            }
+          }
+        });
+
+        if (Object.keys(updates).length === 0) {
+          showToast("没有要更新的字段", "info");
+          return;
+        }
+
+        try {
+          await apiFetch(
+            `/admin/tables/${encodeURIComponent(currentTable)}/rows`,
+            {
+              method: "PUT",
+              body: JSON.stringify({
+                primary_key_value: String(rowId),
+                updates: updates,
+              }),
+            }
+          );
+          showToast("保存成功", "success");
+          editingRowId = null;
+          editingRowData = null;
+          loadTableRows(); // 重新加载数据
+          loadLogs(); // 刷新审计日志
+        } catch (e) {
+          showToast(e.message || "保存失败", "error");
+        }
+      }
+
+      document.getElementById("btn-refresh-tables").addEventListener("click", loadTables);
+
+      btnPrevPage.addEventListener("click", () => {
+        if (currentOffset <= 0) return;
+        currentOffset = Math.max(0, currentOffset - PAGE_SIZE);
+        editingRowId = null; // 切换页面时取消编辑
+        editingRowData = null;
+        loadTableRows();
+      });
+
+      btnNextPage.addEventListener("click", () => {
+        if (currentOffset + PAGE_SIZE >= currentTotal) return;
+        currentOffset += PAGE_SIZE;
+        editingRowId = null; // 切换页面时取消编辑
+        editingRowData = null;
+        loadTableRows();
+      });
+      // ---- 审计日志 ----
+
+      function renderLogs(data) {
+        logTotal = data.total || 0;
+        const items = data.items || [];
+
+        logsBodyEl.innerHTML = "";
+        if (items.length === 0) {
+          logsBodyEl.innerHTML =
+            '<tr><td colspan="6" class="px-3 py-3 text-center text-xs text-slate-400">暂无操作日志。</td></tr>';
+        } else {
+          items.forEach((log) => {
+            const tr = document.createElement("tr");
+            tr.className = "hover:bg-slate-800/40";
+            const cols = [
+              log.created_at,
+              log.table_name,
+              log.operation,
+              log.operator || "",
+              log.row_pk || "",
+              log.detail || "",
+            ];
+            cols.forEach((text, idx) => {
+              const td = document.createElement("td");
+              td.className = "px-3 py-1.5 whitespace-nowrap";
+              td.textContent = text;
+              if (idx === 5) {
+                td.classList.add("max-w-xs", "truncate");
+                td.title = text;
+              }
+              tr.appendChild(td);
+            });
+            logsBodyEl.appendChild(tr);
+          });
+        }
+
+        const pageIndex = Math.floor(logOffset / LOG_PAGE_SIZE) + 1;
+        const pageCount = Math.max(1, Math.ceil(logTotal / LOG_PAGE_SIZE));
+        const start = logTotal === 0 ? 0 : logOffset + 1;
+        const end = Math.min(logOffset + LOG_PAGE_SIZE, logTotal);
+
+        logsPagerInfoEl.textContent = `第 ${pageIndex} / ${pageCount} 页，显示第 ${start}–${end} 条，共 ${logTotal} 条`;
+
+        const tableFilter = selectLogTableEl.value;
+        logMetaEl.textContent = tableFilter ? `仅显示表：${tableFilter}` : "显示所有表的操作";
+
+        btnPrevLog.disabled = logOffset <= 0;
+        btnNextLog.disabled = logOffset + LOG_PAGE_SIZE >= logTotal;
+      }
+
+      async function loadLogs() {
+        const params = new URLSearchParams({
+          offset: String(logOffset),
+          limit: String(LOG_PAGE_SIZE),
+        });
+        const tableFilter = selectLogTableEl.value;
+        if (tableFilter) {
+          params.append("table", tableFilter);
+        }
+        try {
+          const data = await apiFetch(`/admin/audit_logs?${params.toString()}`);
+          renderLogs(data);
+        } catch (e) {
+          showToast(e.message || "加载操作日志失败", "error");
+        }
+      }
+
+      btnPrevLog.addEventListener("click", () => {
+        if (logOffset <= 0) return;
+        logOffset = Math.max(0, logOffset - LOG_PAGE_SIZE);
+        loadLogs();
+      });
+
+      btnNextLog.addEventListener("click", () => {
+        if (logOffset + LOG_PAGE_SIZE >= logTotal) return;
+        logOffset += LOG_PAGE_SIZE;
+        loadLogs();
+      });
+
+      selectLogTableEl.addEventListener("change", () => {
+        logOffset = 0;
+        loadLogs();
+      });
+
+      window.addEventListener("load", () => {
+        loadTables();
+        loadLogs();
+      });
+    </script>
+  </body>
+</html>
+

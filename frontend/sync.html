@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>基础数据 - 基金指数分析系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ECharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <!-- Flatpickr 日期选择 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css" />
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <!-- 顶部导航 -->
+      <header class="border-b border-slate-800 pb-2 mb-4">
+        <div class="flex items-center justify-between">
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight">
+            基金指数分析系统
+          </h1>
+          <nav class="flex rounded-full bg-slate-900/80 border border-slate-800 p-1 text-sm">
+            <a
+              href="/"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              指数分析
+            </a>
+            <a
+              href="/static/sync.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium bg-slate-100 text-slate-900 shadow-sm"
+            >
+              基础数据
+            </a>
+            <a
+              href="/static/db.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              数据管理
+            </a>
+            <a
+              href="/static/notify.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              公众号通知
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      <!-- 删除指数确认弹窗 -->
+      <div id="modal-delete-index" class="fixed inset-0 z-50 items-center justify-center bg-black/60 backdrop-blur-sm" style="display: none;" aria-modal="true" aria-hidden="true" role="dialog">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-xl max-w-md w-full mx-4 p-5" onclick="event.stopPropagation()">
+          <h3 class="text-sm font-semibold text-slate-100 mb-2">删除指数</h3>
+          <p id="modal-delete-index-message" class="text-xs text-slate-300 mb-4">确定删除该指数吗？请选择是否同时删除关联的行情数据。</p>
+          <div class="flex flex-col sm:flex-row gap-2 justify-end">
+            <button type="button" id="modal-delete-index-cancel" class="px-3 py-2 rounded-lg border border-slate-600 text-slate-200 text-xs font-medium hover:bg-slate-700">
+              取消
+            </button>
+            <button type="button" id="modal-delete-index-keep" class="px-3 py-2 rounded-lg bg-slate-600 text-white text-xs font-medium hover:bg-slate-500">
+              保留数据（仅删除指数）
+            </button>
+            <button type="button" id="modal-delete-index-delete-related" class="px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-500">
+              删除关联数据（同时删除 index_prices 中该指数数据）
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 指数管理 -->
+      <section
+        class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-4 shadow-lg shadow-slate-950/40"
+      >
+        <h2 class="text-sm font-semibold text-slate-100">指数管理</h2>
+        
+        <!-- Add index form -->
+        <form id="form-add-index" class="space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="space-y-1">
+              <label
+                for="input-code"
+                class="block text-xs font-medium text-slate-300"
+                >指数代码（例如：^GSPC）</label
+              >
+              <input
+                id="input-code"
+                type="text"
+                required
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="输入指数代码"
+              />
+            </div>
+            <div class="space-y-1">
+              <label
+                for="input-name"
+                class="block text-xs font-medium text-slate-300"
+                >指数名称（必填）</label
+              >
+              <input
+                id="input-name"
+                type="text"
+                required
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="例如：标普500"
+              />
+            </div>
+            <div class="space-y-1">
+              <label
+                for="input-start-date"
+                class="block text-xs font-medium text-slate-300"
+                >开始日期（可选）</label
+              >
+              <input
+                id="input-start-date"
+                type="text"
+                readonly
+                placeholder="选择开始日期"
+                class="w-full rounded-md border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              />
+            </div>
+          </div>
+          <button
+            type="submit"
+            class="w-full md:w-auto inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            添加指数
+          </button>
+        </form>
+
+        <div class="h-px bg-slate-800"></div>
+
+        <!-- Index list -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <span class="text-sm font-medium text-slate-200">已配置指数</span>
+            <div class="flex items-center gap-2">
+              <button
+                id="btn-recalc-ma"
+                type="button"
+                class="text-xs px-2 py-1 rounded border border-slate-600 text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+              >
+                计算均值
+              </button>
+              <button
+                id="btn-recalc-ma-diff"
+                type="button"
+                class="text-xs px-2 py-1 rounded border border-slate-600 text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+              >
+                计算均值偏差
+              </button>
+              <button
+                id="btn-refresh-indices"
+                class="text-xs text-slate-400 hover:text-slate-100"
+              >
+                刷新
+              </button>
+            </div>
+          </div>
+          <div
+            id="indices-list"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+          >
+            <!-- filled by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 日历图展示 -->
+      <section
+        class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3 shadow-lg shadow-slate-950/40 overflow-hidden"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-100">指数数据日历图</h2>
+            <p class="text-xs text-slate-400 mt-0.5">
+              展示指数的数据覆盖情况，类似 GitHub 提交图
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="select-index-calendar" class="text-xs text-slate-300 whitespace-nowrap">选择指数：</label>
+            <select
+              id="select-index-calendar"
+              class="rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="">加载中...</option>
+            </select>
+            <button
+              id="btn-refresh-calendar"
+              class="text-xs text-slate-400 hover:text-slate-100 px-2"
+            >
+              刷新
+            </button>
+          </div>
+        </div>
+        
+        <!-- 年份切换控制 -->
+        <div id="calendar-controls" class="flex items-center justify-between hidden">
+          <button
+            id="btn-prev-year"
+            class="px-3 py-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs text-slate-200"
+          >
+            ← 上一年
+          </button>
+          <span id="current-year" class="text-sm font-medium text-slate-200"></span>
+          <button
+            id="btn-next-year"
+            class="px-3 py-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs text-slate-200"
+          >
+            下一年 →
+          </button>
+        </div>
+        
+        <div id="calendar-container" class="space-y-4">
+          <!-- 日历图将通过 JS 动态生成 -->
+        </div>
+      </section>
+
+      <!-- 日志列表 -->
+      <section
+        class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3 shadow-lg shadow-slate-950/40 overflow-hidden"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-100">同步任务日志</h2>
+            <p id="logs-meta" class="text-xs text-slate-400 mt-0.5"></p>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-slate-300">
+            <label for="select-job-type" class="whitespace-nowrap">任务类型：</label>
+            <select
+              id="select-job-type"
+              class="rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="">全部</option>
+              <option value="sync_all_history">全量同步历史</option>
+              <option value="sync_today">同步今日</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto max-h-[420px] border border-slate-800/80 rounded-md">
+          <table class="min-w-full text-xs text-left text-slate-200">
+            <thead
+              class="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-800"
+            >
+              <tr>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">任务ID</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">类型</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">状态</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">开始时间</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">结束时间</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">指数数</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">总行数</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">数据源</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">详情</th>
+              </tr>
+            </thead>
+            <tbody id="logs-body" class="divide-y divide-slate-800/80">
+              <!-- filled by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 text-xs text-slate-300">
+          <div id="logs-pager-info"></div>
+          <div class="flex items-center gap-2">
+            <button
+              id="btn-prev-log"
+              class="px-2 py-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled
+            >
+              上一页
+            </button>
+            <button
+              id="btn-next-log"
+              class="px-2 py-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled
+            >
+              下一页
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div id="toast-container" class="fixed inset-x-0 top-4 flex justify-center pointer-events-none"></div>
+    </div>
+
+    <script>
+      const apiBase = "";
+      const LOG_PAGE_SIZE = 50;
+
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toast-container");
+        const el = document.createElement("div");
+        el.className =
+          "pointer-events-auto rounded-md px-4 py-2 text-sm shadow-lg border " +
+          (type === "error"
+            ? "bg-red-900/90 border-red-600 text-red-100"
+            : type === "success"
+            ? "bg-emerald-900/90 border-emerald-600 text-emerald-100"
+            : "bg-slate-900/90 border-slate-700 text-slate-100");
+        el.textContent = message;
+        container.appendChild(el);
+        setTimeout(() => {
+          el.classList.add("opacity-0", "translate-y-2");
+          el.addEventListener("transitionend", () => el.remove(), { once: true });
+        }, 2500);
+      }
+
+      async function apiFetch(path, options = {}) {
+        const resp = await fetch(apiBase + path, {
+          headers: { "Content-Type": "application/json" },
+          ...options,
+        });
+        if (!resp.ok) {
+          let detail = "";
+          try {
+            const data = await resp.json();
+            detail = data.detail || JSON.stringify(data);
+          } catch (e) {
+            detail = resp.statusText;
+          }
+          throw new Error(detail || `请求失败：${resp.status}`);
+        }
+        if (resp.status === 204) return null;
+        try {
+          return await resp.json();
+        } catch (e) {
+          return null;
+        }
+      }
+
+      const logsBodyEl = document.getElementById("logs-body");
+      const indicesListEl = document.getElementById("indices-list");
+      const btnRefreshIndices = document.getElementById("btn-refresh-indices");
+      const btnRecalcMa = document.getElementById("btn-recalc-ma");
+      const btnRecalcMaDiff = document.getElementById("btn-recalc-ma-diff");
+      const formAddIndex = document.getElementById("form-add-index");
+      const logsPagerInfoEl = document.getElementById("logs-pager-info");
+      const logsMetaEl = document.getElementById("logs-meta");
+      const btnPrevLog = document.getElementById("btn-prev-log");
+      const btnNextLog = document.getElementById("btn-next-log");
+      const selectJobTypeEl = document.getElementById("select-job-type");
+      const calendarContainerEl = document.getElementById("calendar-container");
+      const btnRefreshCalendar = document.getElementById("btn-refresh-calendar");
+      const selectIndexCalendar = document.getElementById("select-index-calendar");
+      const calendarControlsEl = document.getElementById("calendar-controls");
+      const btnPrevYear = document.getElementById("btn-prev-year");
+      const btnNextYear = document.getElementById("btn-next-year");
+      const currentYearEl = document.getElementById("current-year");
+
+      let logOffset = 0;
+      let logTotal = 0;
+      let allIndicesStatus = [];
+      let currentSelectedIndexId = null;
+      let currentYear = new Date().getFullYear();
+      let calendarChart = null;
+
+      /** 显示删除指数确认弹窗，返回 Promise<'cancel'|'keep'|'delete_related'> */
+      function showDeleteIndexModal(code, name) {
+        const modal = document.getElementById("modal-delete-index");
+        const msg = document.getElementById("modal-delete-index-message");
+        if (!modal || !msg) return Promise.resolve("cancel");
+        msg.textContent = `确定删除指数「${name || code}」（${code}）吗？请选择是否同时删除 index_prices 中的关联行情数据。`;
+        modal.style.display = "flex";
+        modal.setAttribute("aria-hidden", "false");
+        return new Promise(function (resolve) {
+          function close(result) {
+            modal.style.display = "none";
+            modal.setAttribute("aria-hidden", "true");
+            resolve(result);
+          }
+          var btnCancel = document.getElementById("modal-delete-index-cancel");
+          var btnKeep = document.getElementById("modal-delete-index-keep");
+          var btnDeleteRelated = document.getElementById("modal-delete-index-delete-related");
+          if (btnCancel) btnCancel.onclick = function () { close("cancel"); };
+          if (btnKeep) btnKeep.onclick = function () { close("keep"); };
+          if (btnDeleteRelated) btnDeleteRelated.onclick = function () { close("delete_related"); };
+          modal.onclick = function (e) {
+            if (e.target === modal) close("cancel");
+          };
+        });
+      }
+
+      function renderLogs(data) {
+        logTotal = data.total || 0;
+        const items = data.items || [];
+
+        logsBodyEl.innerHTML = "";
+        if (items.length === 0) {
+          logsBodyEl.innerHTML =
+            '<tr><td colspan="9" class="px-3 py-3 text-center text-xs text-slate-400">暂无同步任务记录。</td></tr>';
+        } else {
+          items.forEach((log) => {
+            const tr = document.createElement("tr");
+            tr.className = "hover:bg-slate-800/40";
+
+            const statusColor =
+              log.status === "success"
+                ? "text-emerald-400"
+                : log.status === "error"
+                ? "text-red-400"
+                : "text-amber-300";
+
+            const cols = [
+              String(log.id),
+              log.job_type === "sync_all_history" ? "全量同步历史" : "同步今日",
+              { text: log.status, className: statusColor },
+              log.started_at,
+              log.finished_at || "",
+              log.total_indices != null ? String(log.total_indices) : "",
+              log.total_rows != null ? String(log.total_rows) : "",
+              log.source_summary || "",
+              log.detail || "",
+            ];
+
+            cols.forEach((col, idx) => {
+              const td = document.createElement("td");
+              td.className = "px-3 py-1.5 whitespace-nowrap";
+              if (typeof col === "object" && col !== null) {
+                td.textContent = col.text;
+                if (col.className) td.classList.add(col.className);
+              } else {
+                td.textContent = col;
+              }
+              if (idx === 8) {
+                td.classList.add("max-w-xs", "truncate");
+                td.title = col;
+              }
+              tr.appendChild(td);
+            });
+
+            logsBodyEl.appendChild(tr);
+          });
+        }
+
+        const pageIndex = Math.floor(logOffset / LOG_PAGE_SIZE) + 1;
+        const pageCount = Math.max(1, Math.ceil(logTotal / LOG_PAGE_SIZE));
+        const start = logTotal === 0 ? 0 : logOffset + 1;
+        const end = Math.min(logOffset + LOG_PAGE_SIZE, logTotal);
+
+        logsPagerInfoEl.textContent = `第 ${pageIndex} / ${pageCount} 页，显示第 ${start}–${end} 条，共 ${logTotal} 条`;
+
+        const jobFilter = selectJobTypeEl.value;
+        let filterText = "";
+        if (jobFilter === "sync_all_history") filterText = "仅显示：全量同步历史";
+        else if (jobFilter === "sync_today") filterText = "仅显示：同步今日";
+        else filterText = "显示所有任务";
+        logsMetaEl.textContent = filterText;
+
+        btnPrevLog.disabled = logOffset <= 0;
+        btnNextLog.disabled = logOffset + LOG_PAGE_SIZE >= logTotal;
+      }
+
+      async function loadLogs() {
+        const params = new URLSearchParams({
+          offset: String(logOffset),
+          limit: String(LOG_PAGE_SIZE),
+        });
+        const jobType = selectJobTypeEl.value;
+        if (jobType) {
+          params.append("job_type", jobType);
+        }
+        try {
+          const data = await apiFetch(`/admin/sync_logs?${params.toString()}`);
+          renderLogs(data || { total: 0, items: [] });
+        } catch (e) {
+          showToast(e.message || "加载同步日志失败", "error");
+        }
+      }
+
+      btnPrevLog.addEventListener("click", () => {
+        if (logOffset <= 0) return;
+        logOffset = Math.max(0, logOffset - LOG_PAGE_SIZE);
+        loadLogs();
+      });
+
+      btnNextLog.addEventListener("click", () => {
+        if (logOffset + LOG_PAGE_SIZE >= logTotal) return;
+        logOffset += LOG_PAGE_SIZE;
+        loadLogs();
+      });
+
+      selectJobTypeEl.addEventListener("change", () => {
+        logOffset = 0;
+        loadLogs();
+      });
+
+      async function loadIndices() {
+        try {
+          // 从indices表获取指数数据
+          const indices = await apiFetch("/indices");
+          
+          // 更新日历图下拉框
+          selectIndexCalendar.innerHTML = '<option value="">请选择指数</option>';
+          indices.forEach((idx) => {
+            const opt = document.createElement("option");
+            opt.value = idx.id;
+            opt.textContent = `${idx.name} (${idx.code})`;
+            selectIndexCalendar.appendChild(opt);
+          });
+          
+          // 更新指数管理列表
+          renderIndices(indices || []);
+        } catch (e) {
+          showToast(e.message || "加载指数列表失败", "error");
+        }
+      }
+
+      async function loadCalendarData() {
+        try {
+          if (currentSelectedIndexId) {
+            // 如果已选择指数，只加载该指数的数据
+            const data = await apiFetch(`/indices/${currentSelectedIndexId}/date_status`);
+            allIndicesStatus = [data];
+          } else {
+            // 否则加载所有指数的数据
+            const data = await apiFetch("/indices/date_status");
+            allIndicesStatus = data || [];
+          }
+          renderCalendar();
+        } catch (e) {
+          showToast(e.message || "加载日历数据失败", "error");
+        }
+      }
+
+      function renderCalendar() {
+        calendarContainerEl.innerHTML = "";
+        
+        if (!currentSelectedIndexId) {
+          calendarControlsEl.classList.add("hidden");
+          calendarContainerEl.innerHTML =
+            '<p class="text-xs text-slate-400 text-center py-4">请选择指数查看日历图</p>';
+          return;
+        }
+
+        const status = allIndicesStatus.find(s => s.index_id === parseInt(currentSelectedIndexId));
+        if (!status) {
+          calendarControlsEl.classList.add("hidden");
+          calendarContainerEl.innerHTML =
+            '<p class="text-xs text-slate-400 text-center py-4">未找到该指数的数据</p>';
+          return;
+        }
+
+        // 显示年份控制
+        calendarControlsEl.classList.remove("hidden");
+        currentYearEl.textContent = `${currentYear} 年`;
+
+        // 确定年份范围
+        const firstYear = status.first_data_date 
+          ? new Date(status.first_data_date).getFullYear() 
+          : currentYear;
+        const lastYear = status.last_data_date 
+          ? new Date(status.last_data_date).getFullYear() 
+          : currentYear;
+        const today = new Date();
+        const maxYear = today.getFullYear();
+
+        // 限制年份范围
+        if (currentYear < firstYear) currentYear = firstYear;
+        if (currentYear > maxYear) currentYear = maxYear;
+
+        // 更新按钮状态
+        btnPrevYear.disabled = currentYear <= firstYear;
+        btnNextYear.disabled = currentYear >= maxYear;
+
+        // 创建日历图容器
+        const chartDiv = document.createElement("div");
+        chartDiv.id = "calendar-chart";
+        chartDiv.style.width = "100%";
+        chartDiv.style.height = "180px";
+        calendarContainerEl.appendChild(chartDiv);
+
+        // 准备该年份的日历图数据
+        const dateSet = new Set(status.dates || []);
+        const pricesMap = status.prices || {};
+        const calendarData = [];
+        
+        // 该年的开始和结束日期
+        const yearStart = new Date(currentYear, 0, 1);
+        const yearEnd = new Date(currentYear, 11, 31);
+        const actualEnd = yearEnd > today ? today : yearEnd;
+        
+        // 生成该年的日期数据
+        const currentDate = new Date(yearStart);
+        while (currentDate <= actualEnd) {
+          const dateStr = currentDate.toISOString().split('T')[0];
+          const hasData = dateSet.has(dateStr);
+          calendarData.push([
+            dateStr,
+            hasData ? 1 : 0
+          ]);
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        // 创建自定义tooltip容器
+        const tooltipContainer = document.createElement("div");
+        tooltipContainer.id = "calendar-tooltip";
+        tooltipContainer.className = "hidden fixed z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 text-xs";
+        tooltipContainer.style.pointerEvents = "auto";
+        document.body.appendChild(tooltipContainer);
+
+        // 初始化或更新 ECharts 日历图
+        if (calendarChart) {
+          calendarChart.dispose();
+        }
+        calendarChart = echarts.init(chartDiv, "dark");
+        
+        const option = {
+          tooltip: {
+            trigger: 'item',
+            formatter: function(params) {
+              if (!params.value) return "";
+              
+              const dateStr = params.value[0];
+              const hasData = params.value[1] === 1;
+              
+              if (!hasData) {
+                return `${dateStr}<br/>无数据`;
+              }
+              
+              const priceInfo = pricesMap[dateStr];
+              if (!priceInfo) {
+                return `${dateStr}<br/>有数据`;
+              }
+              
+              // 显示日期和收盘价，提示点击查看详情
+              return `
+                <div style="text-align: left;">
+                  <div style="font-weight: bold; margin-bottom: 4px;">${dateStr}</div>
+                  <div style="margin-bottom: 4px;">收盘价: <span style="color: #22c55e; font-weight: bold;">${priceInfo.close.toFixed(2)}</span></div>
+                  <div style="color: #94a3b8; font-size: 10px;">点击查看详细信息</div>
+                </div>
+              `;
+            },
+            position: function(point, params, dom, rect, size) {
+              // 自定义tooltip位置
+              return [point[0] + 10, point[1] - 10];
+            }
+          },
+          visualMap: {
+            show: false,
+            min: 0,
+            max: 1,
+            inRange: {
+              color: ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'] // GitHub 风格的颜色
+            }
+          },
+          calendar: {
+            top: 20,
+            left: 30,
+            right: 30,
+            cellSize: [11, 11], // 固定小方块大小，类似 GitHub
+            range: [
+              yearStart.toISOString().split('T')[0],
+              actualEnd.toISOString().split('T')[0]
+            ],
+            itemStyle: {
+              borderWidth: 2,
+              borderColor: '#0d1117'
+            },
+            yearLabel: { 
+              show: false 
+            },
+            dayLabel: {
+              firstDay: 0, // GitHub 使用周日作为第一天
+              nameMap: ['日', '一', '二', '三', '四', '五', '六'],
+              color: '#8b949e',
+              fontSize: 11,
+              margin: 4
+            },
+            monthLabel: {
+              color: '#8b949e',
+              fontSize: 11,
+              margin: 4
+            }
+          },
+          series: [
+            {
+              type: "heatmap",
+              coordinateSystem: "calendar",
+              data: calendarData,
+              label: {
+                show: false
+              },
+              emphasis: {
+                itemStyle: {
+                  borderWidth: 1,
+                  borderColor: '#fff'
+                }
+              }
+            }
+          ]
+        };
+        calendarChart.setOption(option);
+        
+        // 监听图表事件，处理"更多"按钮点击
+        calendarChart.on('click', function(params) {
+          if (!params.value || params.value[1] !== 1) return;
+          
+          const dateStr = params.value[0];
+          const priceInfo = pricesMap[dateStr];
+          if (!priceInfo) return;
+          
+          // 显示详细信息模态框
+          showPriceDetailModal(dateStr, priceInfo, status.index_name);
+        });
+        
+        // 响应式调整
+        window.addEventListener("resize", () => {
+          if (calendarChart) calendarChart.resize();
+        });
+      }
+
+      function showPriceDetailModal(dateStr, priceInfo, indexName) {
+        // 创建模态框
+        const modal = document.createElement("div");
+        modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/50";
+        modal.style.pointerEvents = "auto";
+        
+        const modalContent = document.createElement("div");
+        modalContent.className = "bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-6 max-w-md w-full mx-4";
+        
+        const maRows = [
+          { key: 'ma_30', diffKey: 'ma30_diff', label: 'MA30' },
+          { key: 'ma_60', diffKey: 'ma60_diff', label: 'MA60' },
+          { key: 'ma_90', diffKey: 'ma90_diff', label: 'MA90' },
+          { key: 'ma_120', diffKey: 'ma120_diff', label: 'MA120' },
+          { key: 'ma_150', diffKey: 'ma150_diff', label: 'MA150' },
+          { key: 'ma_180', diffKey: 'ma180_diff', label: 'MA180' },
+          { key: 'ma_360', diffKey: 'ma360_diff', label: 'MA360' },
+        ].map(function (r) {
+          const maVal = priceInfo[r.key];
+          const diffVal = priceInfo[r.diffKey];
+          const hasMa = maVal != null && typeof maVal === 'number';
+          const hasDiff = diffVal != null && typeof diffVal === 'number';
+          if (!hasMa && !hasDiff) return '';
+          const maStr = hasMa ? Number(maVal).toFixed(2) : '—';
+          const diffStr = hasDiff ? (Number(diffVal) >= 0 ? '+' : '') + Number(diffVal).toFixed(2) : '—';
+          return `
+            <tr class="border-b border-slate-700">
+              <td class="py-1.5 text-slate-400 w-16">${r.label}</td>
+              <td class="py-1.5 text-slate-100 font-medium">${maStr}</td>
+              <td class="py-1.5 text-slate-400 pl-4">均值偏差</td>
+              <td class="py-1.5 text-slate-100">${diffStr}</td>
+            </tr>`;
+        }).join('');
+
+        modalContent.innerHTML = `
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-slate-100">${indexName}</h3>
+            <button id="modal-close-btn" class="text-slate-400 hover:text-slate-100">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="space-y-3 text-sm">
+            <div class="border-b border-slate-700 pb-2">
+              <div class="text-slate-400 mb-1">交易日期</div>
+              <div class="text-slate-100 font-medium">${dateStr}</div>
+            </div>
+            <div class="border-b border-slate-700 pb-2">
+              <div class="text-slate-400 mb-1">收盘价</div>
+              <div class="text-slate-100 font-medium text-lg">${priceInfo.close != null ? Number(priceInfo.close).toFixed(2) : '—'}</div>
+            </div>
+            <div class="border-b border-slate-700 pb-2">
+              <div class="text-slate-400 mb-1.5">均线与均值偏差（同日期一行）</div>
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="border-b border-slate-600 text-slate-400">
+                    <th class="text-left py-1 w-16">周期</th>
+                    <th class="text-left py-1">均值</th>
+                    <th class="text-left py-1 pl-4" colspan="2">均值偏差</th>
+                  </tr>
+                </thead>
+                <tbody>${maRows || '<tr><td colspan="4" class="py-2 text-slate-500">暂无均线数据</td></tr>'}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+        
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+        
+        // 关闭按钮事件
+        const closeBtn = modalContent.querySelector("#modal-close-btn");
+        closeBtn.addEventListener("click", () => {
+          document.body.removeChild(modal);
+        });
+        
+        // 点击背景关闭
+        modal.addEventListener("click", (e) => {
+          if (e.target === modal) {
+            document.body.removeChild(modal);
+          }
+        });
+      }
+
+      selectIndexCalendar.addEventListener("change", async (e) => {
+        currentSelectedIndexId = e.target.value;
+        if (currentSelectedIndexId) {
+          // 加载该指数的详细数据
+          await loadCalendarData();
+          // 重置到该指数的最后一年
+          const status = allIndicesStatus.find(s => s.index_id === parseInt(currentSelectedIndexId));
+          if (status && status.last_data_date) {
+            currentYear = new Date(status.last_data_date).getFullYear();
+          } else {
+            currentYear = new Date().getFullYear();
+          }
+          renderCalendar();
+        } else {
+          renderCalendar();
+        }
+      });
+
+      btnPrevYear.addEventListener("click", () => {
+        currentYear--;
+        renderCalendar();
+      });
+
+      btnNextYear.addEventListener("click", () => {
+        currentYear++;
+        renderCalendar();
+      });
+
+      btnRefreshCalendar.addEventListener("click", () => {
+        loadCalendarData();
+      });
+
+      // 指数管理功能
+      function renderIndices(indices) {
+        indicesListEl.innerHTML = "";
+        
+        if (!indices || indices.length === 0) {
+          indicesListEl.innerHTML =
+            '<p class="text-xs text-slate-400">暂无指数，请先添加。</p>';
+          return;
+        }
+
+        indices.forEach((idx) => {
+          const card = document.createElement("div");
+          card.className =
+            "rounded-lg border border-slate-800 bg-slate-950/60 p-3 hover:border-slate-700 transition-colors cursor-pointer";
+          card.addEventListener("click", () => {
+            // 点击卡片时自动在日历图展示
+            selectIndexCalendar.value = idx.id;
+            currentSelectedIndexId = idx.id;
+            loadCalendarData();
+            const status = allIndicesStatus.find(s => s.index_id === idx.id);
+            if (status && status.last_data_date) {
+              currentYear = new Date(status.last_data_date).getFullYear();
+            } else {
+              currentYear = new Date().getFullYear();
+            }
+            renderCalendar();
+          });
+
+          // 卡片标题
+          const title = document.createElement("div");
+          title.className = "text-sm font-semibold text-slate-100 mb-1";
+          title.textContent = idx.name || idx.code;
+
+          // 卡片副标题
+          const sub = document.createElement("div");
+          sub.className = "text-xs text-slate-400 mb-3";
+          sub.textContent = `代码：${idx.code}${idx.start_date ? ` · 开始日期：${idx.start_date}` : ''}`;
+
+          // 操作按钮区域
+          const actions = document.createElement("div");
+          actions.className = "flex flex-wrap gap-2";
+
+          // 计算均值按钮
+          const btnMa = document.createElement("button");
+          btnMa.className =
+            "flex-1 px-2 py-1.5 rounded-md bg-indigo-600/80 hover:bg-indigo-500 text-xs font-medium text-white disabled:opacity-50";
+          btnMa.textContent = "计算均值";
+          btnMa.addEventListener("click", async (e) => {
+            e.stopPropagation(); // 阻止触发卡片点击
+            btnMa.disabled = true;
+            try {
+              const res = await apiFetch(`/indices/${idx.id}/recalculate_ma`, { method: "POST" });
+              showToast(`计算均值完成，更新 ${res?.updated_count ?? 0} 条记录`, "success");
+              await loadCalendarData(); // 刷新日历图数据
+            } catch (e) {
+              showToast(e.message || "计算均值失败", "error");
+            } finally {
+              btnMa.disabled = false;
+            }
+          });
+
+          // 计算均值偏差按钮
+          const btnMaDiff = document.createElement("button");
+          btnMaDiff.className =
+            "flex-1 px-2 py-1.5 rounded-md bg-emerald-600/80 hover:bg-emerald-500 text-xs font-medium text-white disabled:opacity-50";
+          btnMaDiff.textContent = "计算均值偏差";
+          btnMaDiff.addEventListener("click", async (e) => {
+            e.stopPropagation(); // 阻止触发卡片点击
+            btnMaDiff.disabled = true;
+            try {
+              const res = await apiFetch(`/indices/${idx.id}/recalculate_ma_diff`, { method: "POST" });
+              showToast(`计算均值偏差完成，更新 ${res?.updated_count ?? 0} 条记录`, "success");
+              await loadCalendarData(); // 刷新日历图数据
+            } catch (e) {
+              showToast(e.message || "计算均值偏差失败", "error");
+            } finally {
+              btnMaDiff.disabled = false;
+            }
+          });
+
+          // 导出 Excel 按钮
+          const btnExport = document.createElement("a");
+          btnExport.href = apiBase + `/indices/${idx.id}/prices/export`;
+          btnExport.target = "_blank";
+          btnExport.rel = "noopener noreferrer";
+          btnExport.className =
+            "px-2 py-1.5 rounded-md bg-amber-600/80 hover:bg-amber-500 text-xs font-medium text-white text-center inline-block";
+          btnExport.textContent = "导出Excel";
+          btnExport.addEventListener("click", (e) => e.stopPropagation());
+
+          // 删除按钮
+          const btnDelete = document.createElement("button");
+          btnDelete.className =
+            "px-2 py-1.5 rounded-md bg-red-600/80 hover:bg-red-500 text-xs font-medium text-white";
+          btnDelete.textContent = "删除";
+          btnDelete.addEventListener("click", async (e) => {
+            e.stopPropagation(); // 阻止触发卡片点击
+            const choice = await showDeleteIndexModal(idx.code, idx.name);
+            if (choice === "cancel") return;
+            try {
+              const url = `/indices/${idx.id}?delete_related=${choice === "delete_related"}`;
+              const res = await apiFetch(url, { method: "DELETE" });
+              const msg = res && res.deleted_prices != null
+                ? `删除成功${res.deleted_prices ? `，已同时删除 ${res.deleted_prices} 条行情数据` : ""}`
+                : "删除成功";
+              showToast(msg, "success");
+              await loadIndices();
+              if (currentSelectedIndexId === idx.id) {
+                currentSelectedIndexId = null;
+                loadCalendarData();
+              }
+            } catch (e) {
+              showToast(e.message || "删除失败", "error");
+            }
+          });
+
+          actions.appendChild(btnMa);
+          actions.appendChild(btnMaDiff);
+          actions.appendChild(btnExport);
+          actions.appendChild(btnDelete);
+
+          card.appendChild(title);
+          card.appendChild(sub);
+          card.appendChild(actions);
+          indicesListEl.appendChild(card);
+        });
+      }
+
+
+      btnRefreshIndices.addEventListener("click", loadIndices);
+
+      async function runRecalcMa() {
+        if (!btnRecalcMa) return;
+        btnRecalcMa.disabled = true;
+        try {
+          const res = await apiFetch("/indices/recalculate_ma", { method: "POST" });
+          showToast(`计算均值完成，更新 ${res?.updated_count ?? 0} 条记录`, "success");
+        } catch (e) {
+          showToast(e.message || "计算均值失败", "error");
+        } finally {
+          btnRecalcMa.disabled = false;
+        }
+      }
+      async function runRecalcMaDiff() {
+        if (!btnRecalcMaDiff) return;
+        btnRecalcMaDiff.disabled = true;
+        try {
+          const res = await apiFetch("/indices/recalculate_ma_diff", { method: "POST" });
+          showToast(`计算均值偏差完成，更新 ${res?.updated_count ?? 0} 条记录`, "success");
+        } catch (e) {
+          showToast(e.message || "计算均值偏差失败", "error");
+        } finally {
+          btnRecalcMaDiff.disabled = false;
+        }
+      }
+      if (btnRecalcMa) btnRecalcMa.addEventListener("click", runRecalcMa);
+      if (btnRecalcMaDiff) btnRecalcMaDiff.addEventListener("click", runRecalcMaDiff);
+
+      formAddIndex.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const code = document.getElementById("input-code").value.trim();
+        const name = document.getElementById("input-name").value.trim();
+        const startDate = document.getElementById("input-start-date").value;
+        
+        if (!code) {
+          showToast("指数代码不能为空", "info");
+          return;
+        }
+        if (!name) {
+          showToast("指数名称不能为空", "info");
+          return;
+        }
+        
+        const btn = e.submitter || e.target.querySelector("button[type=submit]");
+        btn.disabled = true;
+        btn.textContent = "添加中...";
+        try {
+          const payload = { code, name };
+          if (startDate) {
+            payload.start_date = startDate;
+          }
+          await apiFetch("/indices", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          showToast("添加成功", "success");
+          e.target.reset();
+          if (window.fpSyncStartDate) window.fpSyncStartDate.clear();
+          await loadIndices();
+        } catch (err) {
+          showToast(err.message || "添加失败", "error");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "添加指数";
+        }
+      });
+
+      window.addEventListener("load", () => {
+        window.fpSyncStartDate = flatpickr("#input-start-date", {
+          locale: "zh",
+          dateFormat: "Y-m-d",
+          maxDate: "today",
+          allowInput: false,
+        });
+        loadLogs();
+        loadIndices();
+        loadCalendarData();
+      });
+    </script>
+  </body>
+</html>
+

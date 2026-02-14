@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>指数分析 - 基金指数分析系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ECharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <!-- 顶部导航 -->
+      <header class="border-b border-slate-800 pb-2 mb-4">
+        <div class="flex items-center justify-between">
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight">
+            基金指数分析系统
+          </h1>
+          <nav class="flex rounded-full bg-slate-900/80 border border-slate-800 p-1 text-sm">
+            <a
+              href="/"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium bg-slate-100 text-slate-900 shadow-sm"
+            >
+              指数分析
+            </a>
+            <a
+              href="/static/sync.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              基础数据
+            </a>
+            <a
+              href="/static/db.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              数据管理
+            </a>
+            <a
+              href="/static/notify.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              公众号通知
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      <!-- 说明 -->
+      <section class="mb-2">
+        <p class="text-slate-400 text-sm">
+          选择指数进行对比分析，查看收盘价走势曲线或均值偏差趋势。
+        </p>
+      </section>
+
+      <!-- 控制区域 -->
+      <main class="space-y-4">
+        <!-- 分析模式卡片 -->
+        <div
+          class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 shadow-lg shadow-slate-950/40"
+        >
+          <!-- 选项卡切换 -->
+          <div class="flex items-center gap-2 mb-4 pb-3 border-b border-slate-800">
+            <button
+              id="tab-price-trend"
+              class="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-indigo-600 text-white"
+            >
+              指数趋势分析
+            </button>
+            <button
+              id="tab-ma-diff"
+              class="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-800"
+            >
+              均值偏差趋势分析
+            </button>
+          </div>
+
+          <!-- 指数趋势分析内容 -->
+          <div id="content-price-trend" class="analysis-content">
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-sm font-semibold text-slate-100">
+                指数趋势分析
+              </h2>
+              <span id="chart-meta" class="text-xs text-slate-400"></span>
+            </div>
+            
+            <!-- 指数选择区域 -->
+            <div class="mb-3 pb-3 border-b border-slate-800">
+              <label class="block text-xs font-medium text-slate-300 mb-2">
+                选择指数（可多选）
+              </label>
+              <div
+                id="selected-indices"
+                class="flex flex-wrap gap-2 min-h-[40px] p-2 rounded-md border border-slate-700 bg-slate-950/60 mb-2"
+              >
+                <span class="text-xs text-slate-500 self-center">请选择指数...</span>
+              </div>
+              <select
+                id="select-index"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">选择指数...</option>
+              </select>
+            </div>
+
+            <!-- 均线选择 -->
+            <div class="flex flex-wrap items-center gap-3 mb-3 pb-3 border-b border-slate-800">
+              <span class="text-xs font-medium text-slate-300">显示均线：</span>
+              <label class="flex items-center gap-1 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="chk-ma30" class="rounded border-slate-600 bg-slate-800 text-indigo-600 focus:ring-indigo-500" />
+                <span>MA30</span>
+              </label>
+              <label class="flex items-center gap-1 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="chk-ma60" class="rounded border-slate-600 bg-slate-800 text-indigo-600 focus:ring-indigo-500" />
+                <span>MA60</span>
+              </label>
+              <label class="flex items-center gap-1 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="chk-ma120" class="rounded border-slate-600 bg-slate-800 text-indigo-600 focus:ring-indigo-500" />
+                <span>MA120</span>
+              </label>
+              <label class="flex items-center gap-1 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="chk-ma180" class="rounded border-slate-600 bg-slate-800 text-indigo-600 focus:ring-indigo-500" />
+                <span>MA180</span>
+              </label>
+              <label class="flex items-center gap-1 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="chk-ma360" class="rounded border-slate-600 bg-slate-800 text-indigo-600 focus:ring-indigo-500" />
+                <span>MA360</span>
+              </label>
+            </div>
+            <div
+              id="chart"
+              class="w-full"
+              style="height: 500px;"
+            ></div>
+          </div>
+
+          <!-- 均值偏差趋势分析内容 -->
+          <div id="content-ma-diff" class="analysis-content hidden">
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-sm font-semibold text-slate-100">
+                均值偏差趋势分析
+              </h2>
+              <span id="ma-diff-chart-meta" class="text-xs text-slate-400"></span>
+            </div>
+            <!-- 指数和均值周期选择 -->
+            <div class="flex flex-wrap items-center gap-3 mb-3 pb-3 border-b border-slate-800">
+              <label class="text-xs font-medium text-slate-300">选择指数：</label>
+              <select
+                id="select-index-ma-diff"
+                class="rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">请选择指数...</option>
+              </select>
+              <label class="text-xs font-medium text-slate-300 ml-2">均值周期：</label>
+              <select
+                id="select-ma-period"
+                class="rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="30">MA30</option>
+                <option value="60">MA60</option>
+                <option value="90">MA90</option>
+                <option value="120">MA120</option>
+                <option value="150">MA150</option>
+                <option value="180">MA180</option>
+                <option value="360">MA360</option>
+              </select>
+            </div>
+            
+            <!-- 负偏差 | 风险分析 | 偏差区间：从左至右 1/5、1/5、3/5 -->
+            <div id="ma-diff-stats-row" class="flex gap-x-3 gap-y-2 mb-2 pb-2 border-b border-slate-800 hidden overflow-hidden">
+              <!-- 左：基础数据统计 1/5 -->
+              <div id="ma-diff-stats" class="w-[20%] min-w-0 flex flex-col gap-0.5 text-xs shrink-0 overflow-hidden">
+                <div class="text-slate-500">基础数据统计</div>
+                <div class="truncate"><span class="text-slate-500">时间范围 </span><span id="stat-time-range" class="text-slate-400">—</span></div>
+                <div><span class="text-slate-500">总天数 </span><span id="stat-total-days" class="text-slate-200 font-medium">—</span></div>
+                <div><span class="text-slate-500">负偏差天数 </span><span id="stat-negative-days" class="text-slate-200 font-medium">—</span></div>
+                <div><span class="text-slate-500">负偏差平均天数 </span><span id="stat-avg-duration" class="text-slate-200 font-medium">—</span></div>
+                <div><span class="text-slate-500">负偏差最长天数 </span><span id="stat-max-duration" class="text-slate-200 font-medium">—</span></div>
+                <div><span class="text-slate-500">年化收益率 </span><span id="stat-annual-return" class="text-slate-200 font-medium">—</span></div>
+                <div><span class="text-slate-500">最大回撤 </span><span id="stat-max-drawdown" class="text-slate-200 font-medium">—</span></div>
+              </div>
+              <!-- 中：风险分析 1/5 -->
+              <div id="ma-diff-risk-analysis" class="w-[20%] min-w-0 flex flex-col gap-1 text-xs shrink-0 hidden overflow-hidden">
+                <div class="text-slate-500 mb-0.5">风险分析（历史分位）</div>
+                <div class="grid gap-y-1.5 gap-x-2 min-w-0" style="grid-template-columns: minmax(3rem, auto) 1fr; align-items: center;" id="ma-diff-risk-list"></div>
+              </div>
+              <!-- 右：偏差区间统计 3/5 -->
+              <div id="ma-diff-interval-stats" class="w-[60%] min-w-0 flex flex-col gap-1 hidden overflow-hidden">
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-0 text-xs">
+                  <span class="text-slate-500 shrink-0">偏差区间</span>
+                  <input type="number" id="input-ma-diff-interval-size" min="1" step="1" value="50" class="w-12 rounded border border-slate-700 bg-slate-950/60 px-1 py-0.5 text-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                  <span class="text-slate-500">点</span>
+                  <span id="ma-diff-percentile-text" class="text-slate-400 truncate max-w-full"></span>
+                </div>
+                <div id="ma-diff-interval-chart" class="w-full rounded border border-slate-700/80 shrink-0" style="height: 140px;"></div>
+              </div>
+            </div>
+            
+            <div
+              id="ma-diff-chart"
+              class="w-full"
+              style="height: 500px;"
+            ></div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Toast area -->
+      <div id="toast-container" class="fixed inset-x-0 top-4 flex justify-center pointer-events-none"></div>
+    </div>
+
+    <script>
+      const apiBase = "";
+
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toast-container");
+        const el = document.createElement("div");
+        el.className =
+          "pointer-events-auto rounded-md px-4 py-2 text-sm shadow-lg border " +
+          (type === "error"
+            ? "bg-red-900/90 border-red-600 text-red-100"
+            : type === "success"
+            ? "bg-emerald-900/90 border-emerald-600 text-emerald-100"
+            : "bg-slate-900/90 border-slate-700 text-slate-100");
+        el.textContent = message;
+        container.appendChild(el);
+        setTimeout(() => {
+          el.classList.add("opacity-0", "translate-y-2");
+          el.addEventListener("transitionend", () => el.remove(), { once: true });
+        }, 2500);
+      }
+
+      async function apiFetch(path, options = {}) {
+        const resp = await fetch(apiBase + path, {
+          headers: { "Content-Type": "application/json", ...options.headers },
+          ...options,
+        });
+        if (!resp.ok) {
+          let detail = "";
+          try {
+            const data = await resp.json();
+            detail = data.detail || JSON.stringify(data);
+          } catch (e) {
+            detail = resp.statusText;
+          }
+          throw new Error(detail || `请求失败：${resp.status}`);
+        }
+        if (resp.status === 204) return null;
+        try {
+          return await resp.json();
+        } catch (e) {
+          return null;
+        }
+      }
+
+      const selectIndexEl = document.getElementById("select-index");
+      const selectedIndicesEl = document.getElementById("selected-indices");
+      const chartMetaEl = document.getElementById("chart-meta");
+      const selectIndexMaDiffEl = document.getElementById("select-index-ma-diff");
+      const selectMaPeriodEl = document.getElementById("select-ma-period");
+      const maDiffChartMetaEl = document.getElementById("ma-diff-chart-meta");
+      const maDiffStatsRowEl = document.getElementById("ma-diff-stats-row");
+      const maDiffStatsEl = document.getElementById("ma-diff-stats");
+      const maDiffRiskAnalysisEl = document.getElementById("ma-diff-risk-analysis");
+      const maDiffRiskListEl = document.getElementById("ma-diff-risk-list");
+      const statNegativeDaysEl = document.getElementById("stat-negative-days");
+      const statMaxDurationEl = document.getElementById("stat-max-duration");
+      const statAvgDurationEl = document.getElementById("stat-avg-duration");
+      const statTimeRangeEl = document.getElementById("stat-time-range");
+      const statTotalDaysEl = document.getElementById("stat-total-days");
+      const statAnnualReturnEl = document.getElementById("stat-annual-return");
+      const statMaxDrawdownEl = document.getElementById("stat-max-drawdown");
+      const maDiffIntervalStatsEl = document.getElementById("ma-diff-interval-stats");
+      const inputMaDiffIntervalSizeEl = document.getElementById("input-ma-diff-interval-size");
+      const maDiffPercentileTextEl = document.getElementById("ma-diff-percentile-text");
+      let maDiffIntervalChart = null; // 偏差区间方差图
+      const tabPriceTrend = document.getElementById("tab-price-trend");
+      const tabMaDiff = document.getElementById("tab-ma-diff");
+      const contentPriceTrend = document.getElementById("content-price-trend");
+      const contentMaDiff = document.getElementById("content-ma-diff");
+
+      const DEFAULT_START_DATE = "2005-01-01";
+      function getDefaultEndDate() {
+        return new Date().toISOString().slice(0, 10);
+      }
+      const chkMa30 = document.getElementById("chk-ma30");
+      const chkMa60 = document.getElementById("chk-ma60");
+      const chkMa120 = document.getElementById("chk-ma120");
+      const chkMa180 = document.getElementById("chk-ma180");
+      const chkMa360 = document.getElementById("chk-ma360");
+
+      let chart;
+      let maDiffChart;
+      let allIndices = [];
+      let selectedIndexIds = new Set();
+      let pricesData = {}; // { indexId: { index, prices } }
+      let maDiffPricesData = null; // { index, prices } for single index
+      let maDiffFullDates = []; // 全量日期数组，用于 dataZoom 筛选
+      let maDiffFullDiffValues = []; // 全量偏差值数组，用于 dataZoom 筛选
+      let maDiffLastVisibleDates = []; // 当前可见日期范围
+      let maDiffLastVisibleDiffValues = []; // 当前可见偏差值（用于偏差区间统计）
+      let maDiffFullDeviationsByPeriod = {}; // 各周期全量偏差 { 30: [], 60: [], ... }
+      let maDiffLastVisibleDeviationsByPeriod = {}; // 各周期当前可见偏差（用于风险分析）
+      let maDiffFullCloseValues = []; // 全量收盘价数组，用于 tooltip
+      let maDiffFullMaValues = []; // 全量均值数组，用于 tooltip
+      let maDiffDDStartDate = ""; // 最大回撤区间开始日期（用于趋势图红色标记）
+      let maDiffDDEndDate = "";
+
+      function initChart() {
+        const chartDom = document.getElementById("chart");
+        if (!chartDom) return;
+        chart = echarts.init(chartDom, "dark");
+        chart.setOption({
+          tooltip: {
+            trigger: "axis",
+            axisPointer: {
+              type: "cross"
+            }
+          },
+          legend: {
+            top: 10,
+            textStyle: { color: "#cbd5f5" },
+            selectedMode: true
+          },
+          grid: { left: 60, right: 30, top: 50, bottom: 80 },
+          dataZoom: [
+            { type: "inside", xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: true, moveOnMouseMove: true },
+            {
+              type: "slider",
+              xAxisIndex: 0,
+              start: 0,
+              end: 100,
+              height: 24,
+              bottom: 10,
+              showDetail: true,
+              handleStyle: { color: "#64748b" },
+              textStyle: { color: "#94a3b8", fontSize: 11 },
+            },
+          ],
+          xAxis: {
+            type: "category",
+            boundaryGap: false,
+            axisLine: { lineStyle: { color: "#64748b" } },
+            axisLabel: { color: "#94a3b8", rotate: 45 },
+          },
+          yAxis: {
+            type: "value",
+            scale: false,
+            axisLine: { lineStyle: { color: "#64748b" } },
+            axisLabel: { color: "#94a3b8" },
+            splitLine: { lineStyle: { color: "#1e293b" } },
+          },
+          series: [],
+        });
+        window.addEventListener("resize", () => chart && chart.resize());
+      }
+
+      function initMaDiffChart() {
+        const chartDom = document.getElementById("ma-diff-chart");
+        if (!chartDom) return;
+        maDiffChart = echarts.init(chartDom, "dark");
+        maDiffChart.setOption({
+          tooltip: {
+            trigger: "axis",
+            axisPointer: { type: "cross" },
+            backgroundColor: "rgba(30, 41, 59, 0.92)",
+            borderColor: "rgba(100, 116, 139, 0.4)",
+            textStyle: { color: "#e2e8f0", fontSize: 12 },
+          },
+          legend: {
+            top: 10,
+            textStyle: { color: "#94a3b8", fontSize: 12 },
+            selectedMode: false,
+          },
+          toolbox: {
+            right: 12,
+            top: 10,
+            feature: {
+              dataZoom: {
+                title: { zoom: "框选区域", back: "还原" },
+                xAxisIndex: 0,
+              },
+              restore: { title: "还原" },
+            },
+            iconStyle: { color: "#94a3b8", borderColor: "#64748b" },
+            emphasis: { iconStyle: { color: "#cbd5f1", borderColor: "#94a3b8" } },
+          },
+          grid: { left: 58, right: 58, top: 48, bottom: 80 },
+          dataZoom: [
+            { type: "inside", xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: true, moveOnMouseMove: true },
+            {
+              type: "slider",
+              xAxisIndex: 0,
+              start: 0,
+              end: 100,
+              height: 22,
+              bottom: 12,
+              showDetail: true,
+              handleStyle: { color: "#64748b", borderColor: "#475569" },
+              textStyle: { color: "#94a3b8", fontSize: 11 },
+              borderColor: "rgba(71, 85, 105, 0.5)",
+              fillerColor: "rgba(96, 165, 250, 0.12)",
+            },
+          ],
+          xAxis: {
+            type: "category",
+            boundaryGap: false,
+            axisLine: { lineStyle: { color: "rgba(71, 85, 105, 0.6)" } },
+            axisLabel: { color: "#94a3b8", fontSize: 11, rotate: 45 },
+          },
+          yAxis: [
+            {
+              type: "value",
+              name: "价格",
+              position: "left",
+              nameTextStyle: { color: "#94a3b8", fontSize: 11 },
+              axisLine: { show: false },
+              axisLabel: { color: "#94a3b8", fontSize: 11 },
+              splitLine: { lineStyle: { color: "rgba(51, 65, 85, 0.4)", type: "dashed" } },
+            },
+            {
+              type: "value",
+              name: "均值偏差",
+              position: "right",
+              nameTextStyle: { color: "#94a3b8", fontSize: 11 },
+              axisLine: { show: false },
+              axisLabel: { color: "#94a3b8", fontSize: 11 },
+              splitLine: { show: false },
+            }
+          ],
+          series: [],
+        });
+        window.addEventListener("resize", () => maDiffChart && maDiffChart.resize());
+      }
+
+
+      function renderIndicesSelect(indices) {
+        allIndices = indices || [];
+        selectIndexEl.innerHTML = '<option value="">选择指数...</option>';
+        selectIndexMaDiffEl.innerHTML = '<option value="">请选择指数...</option>';
+        
+        indices.forEach((idx) => {
+          const opt = document.createElement("option");
+          opt.value = idx.id;
+          opt.textContent = `${idx.name || idx.code}（${idx.code}）`;
+          opt.disabled = selectedIndexIds.has(idx.id);
+          selectIndexEl.appendChild(opt);
+
+          const opt2 = document.createElement("option");
+          opt2.value = idx.id;
+          opt2.textContent = `${idx.name || idx.code}（${idx.code}）`;
+          selectIndexMaDiffEl.appendChild(opt2);
+        });
+      }
+
+      function renderSelectedIndices() {
+        selectedIndicesEl.innerHTML = "";
+        
+        if (selectedIndexIds.size === 0) {
+          selectedIndicesEl.innerHTML = '<span class="text-xs text-slate-500 self-center">请选择指数...</span>';
+          return;
+        }
+
+        selectedIndexIds.forEach((indexId) => {
+          const idx = allIndices.find(i => i.id === indexId);
+          if (!idx) return;
+
+          const tag = document.createElement("div");
+          tag.className = "inline-flex items-center gap-1 px-2 py-1 rounded-md bg-indigo-600/20 border border-indigo-500/30 text-xs";
+          
+          const name = document.createElement("span");
+          name.className = "text-slate-200";
+          name.textContent = `${idx.name || idx.code}（${idx.code}）`;
+          
+          const btn = document.createElement("button");
+          btn.className = "text-indigo-300 hover:text-indigo-100";
+          btn.innerHTML = "×";
+          btn.addEventListener("click", () => {
+            selectedIndexIds.delete(indexId);
+            renderSelectedIndices();
+            renderIndicesSelect(allIndices);
+            updateChart();
+          });
+          
+          tag.appendChild(name);
+          tag.appendChild(btn);
+          selectedIndicesEl.appendChild(tag);
+        });
+      }
+
+      async function loadIndices() {
+        try {
+          const data = await apiFetch("/indices");
+          renderIndicesSelect(data || []);
+        } catch (e) {
+          showToast(e.message || "加载指数列表失败", "error");
+        }
+      }
+
+      async function loadMaDiffPrices() {
+        const indexIdStr = selectIndexMaDiffEl.value;
+        if (!indexIdStr) {
+          maDiffPricesData = null;
+          updateMaDiffChart();
+          return;
+        }
+
+        const indexId = parseInt(indexIdStr);
+        const startDate = DEFAULT_START_DATE;
+        const endDate = getDefaultEndDate();
+
+        try {
+          const params = new URLSearchParams();
+          params.append("start_date", startDate);
+          params.append("end_date", endDate);
+          const data = await apiFetch(`/indices/${indexId}/prices?${params.toString()}`);
+          maDiffPricesData = data;
+          updateMaDiffChart();
+        } catch (e) {
+          showToast(e.message || "加载数据失败", "error");
+          maDiffPricesData = null;
+          updateMaDiffChart();
+        }
+      }
+
+      function updateMaDiffChart() {
+        if (!maDiffChart) return;
+
+        if (!maDiffPricesData || !maDiffPricesData.prices || maDiffPricesData.prices.length === 0) {
+          maDiffChart.setOption({
+            series: [],
+            xAxis: { data: [] },
+          }, { notMerge: true });
+          maDiffChartMetaEl.textContent = "";
+          if (maDiffStatsRowEl) maDiffStatsRowEl.classList.add("hidden");
+          maDiffStatsEl.classList.add("hidden");
+          if (maDiffRiskAnalysisEl) maDiffRiskAnalysisEl.classList.add("hidden");
+          maDiffIntervalStatsEl.classList.add("hidden");
+          maDiffLastVisibleDates = [];
+          maDiffLastVisibleDiffValues = [];
+          maDiffFullDeviationsByPeriod = {};
+          maDiffLastVisibleDeviationsByPeriod = {};
+          return;
+        }
+
+        const MA_PERIODS = [30, 60, 90, 120, 150, 180, 360];
+        const period = parseInt(selectMaPeriodEl.value) || 30;
+        const maKey = `ma_${period}`;
+        const diffKey = `ma${period}_diff`;
+
+        const prices = maDiffPricesData.prices;
+        const sortedDates = [];
+        const closeValues = [];
+        const maValues = [];
+        const diffValues = [];
+
+        prices.forEach((p) => {
+          const dateStr = typeof p.trade_date === "string" ? p.trade_date : (p.trade_date && p.trade_date.toString ? p.trade_date.toString().slice(0, 10) : String(p.trade_date));
+          sortedDates.push(dateStr);
+          closeValues.push(p.close != null ? Number(p.close) : null);
+          maValues.push(p[maKey] != null ? Number(p[maKey]) : null);
+          diffValues.push(p[diffKey] != null ? Number(p[diffKey]) : null);
+        });
+
+        // 计算左右轴的自适应范围
+        const leftAxisValues = [...closeValues, ...maValues].filter(v => v != null);
+        const rightAxisValues = diffValues.filter(v => v != null);
+
+        const leftMin = leftAxisValues.length > 0 ? Math.min(...leftAxisValues) : 0;
+        const leftMax = leftAxisValues.length > 0 ? Math.max(...leftAxisValues) : 0;
+        const rightMin = rightAxisValues.length > 0 ? Math.min(...rightAxisValues) : 0;
+        const rightMax = rightAxisValues.length > 0 ? Math.max(...rightAxisValues) : 0;
+
+        // 添加一些边距
+        const leftPadding = (leftMax - leftMin) * 0.1;
+        const rightPadding = Math.max(Math.abs(rightMin), Math.abs(rightMax)) * 0.1;
+
+        // 保存全量数据用于 dataZoom 筛选和 tooltip
+        maDiffFullDates = sortedDates;
+        maDiffFullDiffValues = diffValues;
+        maDiffFullCloseValues = closeValues;
+        maDiffFullMaValues = maValues;
+        maDiffFullDeviationsByPeriod = {};
+        MA_PERIODS.forEach(function(per) {
+          const key = "ma" + per + "_diff";
+          maDiffFullDeviationsByPeriod[per] = prices.map(function(p) { return p[key] != null ? Number(p[key]) : null; });
+        });
+
+        maDiffLastVisibleDates = sortedDates.slice();
+        maDiffLastVisibleDiffValues = diffValues.slice();
+        maDiffLastVisibleDeviationsByPeriod = {};
+        MA_PERIODS.forEach(function(per) {
+          maDiffLastVisibleDeviationsByPeriod[per] = (maDiffFullDeviationsByPeriod[per] || []).slice();
+        });
+        updateMaDiffStats(sortedDates, diffValues, closeValues);
+        updateMaDiffIntervalStats();
+        updateMaDiffRiskAnalysis();
+
+        const indexInfo = maDiffPricesData.index;
+        const ddStartIdx = maDiffDDStartDate ? sortedDates.indexOf(maDiffDDStartDate) : -1;
+        const ddEndIdx = maDiffDDEndDate ? sortedDates.indexOf(maDiffDDEndDate) : -1;
+        const ddSegmentData = (ddStartIdx >= 0 && ddEndIdx >= 0 && ddStartIdx <= ddEndIdx)
+          ? closeValues.map(function(v, i) { return (i >= ddStartIdx && i <= ddEndIdx) ? v : null; })
+          : null;
+        const seriesBase = [
+          {
+            name: "收盘价",
+            type: "line",
+            yAxisIndex: 0,
+            data: closeValues,
+            symbol: "circle",
+            symbolSize: 4,
+            showSymbol: false,
+            smooth: true,
+            smoothMonotone: "x",
+            lineStyle: { width: 2.5, color: "rgba(96, 165, 250, 0.95)", shadowBlur: 0, shadowColor: "transparent" },
+            itemStyle: { color: "#60a5fa", borderWidth: 0 },
+            connectNulls: false,
+          },
+          {
+            name: `MA${period}`,
+            type: "line",
+            yAxisIndex: 0,
+            data: maValues,
+            symbol: "circle",
+            symbolSize: 4,
+            showSymbol: false,
+            smooth: true,
+            smoothMonotone: "x",
+            lineStyle: { width: 2.5, color: "rgba(74, 222, 128, 0.95)", shadowBlur: 0, shadowColor: "transparent" },
+            itemStyle: { color: "#4ade80", borderWidth: 0 },
+            connectNulls: false,
+          },
+          {
+            name: "均值偏差",
+            type: "bar",
+            yAxisIndex: 1,
+            data: diffValues,
+            barMaxWidth: 14,
+            barGap: "30%",
+            itemStyle: {
+              color: function(params) {
+                const val = params.value;
+                if (val == null) return "rgba(100, 116, 139, 0.35)";
+                return val >= 0 ? "rgba(251, 146, 60, 0.65)" : "rgba(148, 163, 184, 0.5)";
+              },
+            },
+            emphasis: {
+              itemStyle: {
+                color: function(params) {
+                  const val = params.value;
+                  if (val == null) return "rgba(100, 116, 139, 0.5)";
+                  return val >= 0 ? "rgba(251, 146, 60, 0.85)" : "rgba(148, 163, 184, 0.7)";
+                },
+              },
+            },
+            barBorderRadius: [4, 4, 0, 0],
+            connectNulls: false,
+          }
+        ];
+        const ddSeries = ddSegmentData ? {
+          name: "最大回撤区间",
+          type: "line",
+          yAxisIndex: 0,
+          data: ddSegmentData,
+          symbol: "circle",
+          symbolSize: 5,
+          showSymbol: true,
+          smooth: true,
+          smoothMonotone: "x",
+          lineStyle: { width: 2.5, color: "rgba(239, 68, 68, 0.95)", shadowBlur: 0, shadowColor: "transparent" },
+          itemStyle: { color: "#ef4444", borderWidth: 0 },
+          connectNulls: false,
+        } : null;
+        const series = ddSeries ? [ seriesBase[0], ddSeries, seriesBase[1], seriesBase[2] ] : seriesBase;
+        maDiffChart.setOption({
+          tooltip: {
+            trigger: "axis",
+            axisPointer: {
+              type: "cross"
+            },
+            formatter: function(params) {
+              if (!params || params.length === 0) return "";
+              
+              // 获取第一个系列的数据索引（所有系列共享相同的 x 轴索引）
+              const dataIndex = params[0].dataIndex;
+              const date = maDiffFullDates[dataIndex];
+              const close = maDiffFullCloseValues[dataIndex];
+              const ma = maDiffFullMaValues[dataIndex];
+              const diff = maDiffFullDiffValues[dataIndex];
+              
+              let html = `<div style="margin-bottom: 4px; font-weight: bold; color: #cbd5f5;">${date}</div>`;
+              
+              if (close != null) {
+                html += `<div style="margin: 2px 0;">
+                  <span style="display: inline-block; width: 60px; color: #94a3b8;">收盘价：</span>
+                  <span style="color: #3b82f6; font-weight: bold;">${close.toFixed(2)}</span>
+                </div>`;
+              }
+              
+              if (ma != null) {
+                html += `<div style="margin: 2px 0;">
+                  <span style="display: inline-block; width: 60px; color: #94a3b8;">均值：</span>
+                  <span style="color: #22c55e; font-weight: bold;">${ma.toFixed(2)}</span>
+                </div>`;
+              }
+              
+              if (diff != null) {
+                const diffColor = diff >= 0 ? "#22c55e" : "#ef4444";
+                const diffSign = diff >= 0 ? "+" : "";
+                html += `<div style="margin: 2px 0;">
+                  <span style="display: inline-block; width: 60px; color: #94a3b8;">均值偏差：</span>
+                  <span style="color: ${diffColor}; font-weight: bold;">${diffSign}${diff.toFixed(2)}</span>
+                </div>`;
+              }
+              
+              return html;
+            }
+          },
+          toolbox: {
+            right: 12,
+            top: 10,
+            feature: {
+              dataZoom: {
+                title: { zoom: "框选区域", back: "还原" },
+                xAxisIndex: 0,
+              },
+              restore: { title: "还原" },
+            },
+            iconStyle: { color: "#94a3b8", borderColor: "#64748b" },
+            emphasis: { iconStyle: { color: "#cbd5f1", borderColor: "#94a3b8" } },
+          },
+          dataZoom: [
+            { type: "inside", xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: true, moveOnMouseMove: true },
+            {
+              type: "slider",
+              xAxisIndex: 0,
+              start: 0,
+              end: 100,
+              height: 22,
+              bottom: 12,
+              showDetail: true,
+              brushSelect: true,
+              handleStyle: { color: "#64748b", borderColor: "#475569" },
+              dataBackground: { lineStyle: { color: "rgba(71,85,105,0.4)" }, areaStyle: { color: "rgba(71,85,105,0.12)" } },
+              selectedDataBackground: { lineStyle: { color: "rgba(96,165,250,0.5)" }, areaStyle: { color: "rgba(96,165,250,0.1)" } },
+              textStyle: { color: "#94a3b8", fontSize: 11 },
+              borderColor: "rgba(71, 85, 105, 0.5)",
+              fillerColor: "rgba(96, 165, 250, 0.12)",
+            },
+          ],
+          xAxis: {
+            type: "category",
+            boundaryGap: false,
+            data: sortedDates,
+            axisLine: { lineStyle: { color: "rgba(71, 85, 105, 0.6)" } },
+            axisLabel: { color: "#94a3b8", fontSize: 11, rotate: 45 },
+          },
+          yAxis: [
+            {
+              type: "value",
+              name: "价格",
+              position: "left",
+              min: leftMin - leftPadding,
+              max: leftMax + leftPadding,
+              nameTextStyle: { color: "#94a3b8", fontSize: 11 },
+              axisLine: { show: false },
+              axisLabel: { color: "#94a3b8", fontSize: 11 },
+              splitLine: { lineStyle: { color: "rgba(51, 65, 85, 0.4)", type: "dashed" } },
+            },
+            {
+              type: "value",
+              name: "均值偏差",
+              position: "right",
+              min: rightMin - rightPadding,
+              max: rightMax + rightPadding,
+              nameTextStyle: { color: "#94a3b8", fontSize: 11 },
+              axisLine: { show: false },
+              axisLabel: { color: "#94a3b8", fontSize: 11 },
+              splitLine: { show: false },
+            }
+          ],
+          series: series,
+        }, { notMerge: true });
+
+        maDiffChart.resize();
+
+        if (sortedDates.length > 0) {
+          maDiffChartMetaEl.textContent = `${indexInfo.name || indexInfo.code}（${indexInfo.code}）· MA${period} · ${sortedDates.length} 个交易日 · ${sortedDates[0]} ~ ${sortedDates[sortedDates.length - 1]}`;
+        } else {
+          maDiffChartMetaEl.textContent = "";
+        }
+
+        // 监听 dataZoom 事件，动态更新统计数据
+        maDiffChart.off('dataZoom');
+        maDiffChart.on('dataZoom', function(params) {
+          if (!maDiffFullDates || maDiffFullDates.length === 0) return;
+          
+          const option = maDiffChart.getOption();
+          const dataZoom = option.dataZoom;
+          if (!dataZoom || dataZoom.length === 0) return;
+          
+          // 获取当前显示范围（使用 slider 的 start 和 end）
+          let start = 0;
+          let end = 100;
+          for (let i = 0; i < dataZoom.length; i++) {
+            if (dataZoom[i].type === 'slider') {
+              start = dataZoom[i].start || 0;
+              end = dataZoom[i].end || 100;
+              break;
+            }
+          }
+          
+          // 计算当前可见范围的数据索引
+          const totalCount = maDiffFullDates.length;
+          const startIndex = Math.floor((start / 100) * totalCount);
+          const endIndex = Math.ceil((end / 100) * totalCount);
+          
+          // 提取可见范围的数据
+          const visibleDates = maDiffFullDates.slice(startIndex, endIndex);
+          const visibleDiffValues = maDiffFullDiffValues.slice(startIndex, endIndex);
+          maDiffLastVisibleDates = visibleDates.slice();
+          maDiffLastVisibleDiffValues = visibleDiffValues.slice();
+          const visibleCloseValues = maDiffFullCloseValues.slice(startIndex, endIndex);
+          Object.keys(maDiffFullDeviationsByPeriod).forEach(function(per) {
+            const arr = maDiffFullDeviationsByPeriod[per];
+            maDiffLastVisibleDeviationsByPeriod[per] = arr ? arr.slice(startIndex, endIndex) : [];
+          });
+          updateMaDiffStats(visibleDates, visibleDiffValues, visibleCloseValues);
+          updateMaDiffIntervalStats();
+          updateMaDiffRiskAnalysis();
+          updateMaDiffChartDDSeries();
+        });
+      }
+
+      function updateMaDiffChartDDSeries() {
+        if (!maDiffChart || !maDiffFullDates || !maDiffFullCloseValues || !maDiffFullMaValues || !maDiffFullDiffValues) return;
+        const period = parseInt(selectMaPeriodEl.value, 10) || 30;
+        const closeValues = maDiffFullCloseValues.slice();
+        const maValues = maDiffFullMaValues.slice();
+        const diffValues = maDiffFullDiffValues.slice();
+        const ddStartIdx = maDiffDDStartDate ? maDiffFullDates.indexOf(maDiffDDStartDate) : -1;
+        const ddEndIdx = maDiffDDEndDate ? maDiffFullDates.indexOf(maDiffDDEndDate) : -1;
+        const ddSegmentData = (ddStartIdx >= 0 && ddEndIdx >= 0 && ddStartIdx <= ddEndIdx)
+          ? closeValues.map(function(v, i) { return (i >= ddStartIdx && i <= ddEndIdx) ? v : null; })
+          : null;
+        const seriesBase = [
+          { name: "收盘价", type: "line", yAxisIndex: 0, data: closeValues, symbol: "circle", symbolSize: 4, showSymbol: false, smooth: true, smoothMonotone: "x", lineStyle: { width: 2.5, color: "rgba(96, 165, 250, 0.95)", shadowBlur: 0, shadowColor: "transparent" }, itemStyle: { color: "#60a5fa", borderWidth: 0 }, connectNulls: false },
+          { name: "MA" + period, type: "line", yAxisIndex: 0, data: maValues, symbol: "circle", symbolSize: 4, showSymbol: false, smooth: true, smoothMonotone: "x", lineStyle: { width: 2.5, color: "rgba(74, 222, 128, 0.95)", shadowBlur: 0, shadowColor: "transparent" }, itemStyle: { color: "#4ade80", borderWidth: 0 }, connectNulls: false },
+          { name: "均值偏差", type: "bar", yAxisIndex: 1, data: diffValues, barMaxWidth: 14, barGap: "30%", itemStyle: { color: function(params) { const val = params.value; if (val == null) return "rgba(100, 116, 139, 0.35)"; return val >= 0 ? "rgba(251, 146, 60, 0.65)" : "rgba(148, 163, 184, 0.5)"; } }, emphasis: { itemStyle: { color: function(params) { const val = params.value; if (val == null) return "rgba(100, 116, 139, 0.5)"; return val >= 0 ? "rgba(251, 146, 60, 0.85)" : "rgba(148, 163, 184, 0.7)"; } } }, barBorderRadius: [4, 4, 0, 0], connectNulls: false }
+        ];
+        const ddSeries = ddSegmentData ? { name: "最大回撤区间", type: "line", yAxisIndex: 0, data: ddSegmentData, symbol: "circle", symbolSize: 5, showSymbol: true, smooth: true, smoothMonotone: "x", lineStyle: { width: 2.5, color: "rgba(239, 68, 68, 0.95)", shadowBlur: 0, shadowColor: "transparent" }, itemStyle: { color: "#ef4444", borderWidth: 0 }, connectNulls: false } : null;
+        const series = ddSeries ? [ seriesBase[0], ddSeries, seriesBase[1], seriesBase[2] ] : seriesBase;
+        maDiffChart.setOption({ series: series }, { replaceMerge: ["series"] });
+      }
+
+      function updateMaDiffRiskAnalysis() {
+        const periods = [30, 60, 90, 120, 150, 180, 360];
+        if (!maDiffRiskListEl) return;
+        maDiffRiskListEl.innerHTML = "";
+        let hasAny = false;
+        periods.forEach(function(per) {
+          const arr = maDiffLastVisibleDeviationsByPeriod[per];
+          const valid = (arr || []).filter(function(v) { return v != null && !Number.isNaN(Number(v)); });
+          const label = document.createElement("div");
+          label.className = "text-slate-500 whitespace-nowrap";
+          label.textContent = "MA" + per;
+          const cell = document.createElement("div");
+          cell.className = "flex items-center min-w-0";
+          if (valid.length === 0) {
+            cell.innerHTML = "<span class=\"text-slate-500 text-[10px]\">—</span>";
+            maDiffRiskListEl.appendChild(label);
+            maDiffRiskListEl.appendChild(cell);
+            return;
+          }
+          hasAny = true;
+          const current = valid[valid.length - 1];
+          const countBelow = valid.filter(function(v) { return v < current; }).length;
+          const pct = Math.min(100, Math.max(0, (countBelow / valid.length) * 100));
+          const scale = document.createElement("div");
+          scale.className = "w-full max-w-full h-1.5 rounded bg-slate-700/80 relative flex-shrink-0";
+          const mark = document.createElement("span");
+          mark.className = "absolute top-0 bottom-0 w-0.5 rounded-sm bg-amber-400/90";
+          mark.style.left = pct + "%";
+          mark.style.transform = "translateX(-50%)";
+          scale.appendChild(mark);
+          cell.appendChild(scale);
+          maDiffRiskListEl.appendChild(label);
+          maDiffRiskListEl.appendChild(cell);
+        });
+        if (maDiffRiskAnalysisEl) {
+          if (hasAny) {
+            maDiffRiskAnalysisEl.classList.remove("hidden");
+            if (maDiffStatsRowEl) maDiffStatsRowEl.classList.remove("hidden");
+          } else {
+            maDiffRiskAnalysisEl.classList.add("hidden");
+          }
+        }
+      }
+
+      function updateMaDiffStats(dates, diffValues, closeValues) {
+        const totalDays = dates ? dates.length : 0;
+        statTimeRangeEl.textContent = totalDays > 0 ? dates[0] + " ~ " + dates[dates.length - 1] : "—";
+        statTotalDaysEl.textContent = totalDays > 0 ? totalDays + " 天" : "—";
+        statNegativeDaysEl.textContent = "—";
+        statAvgDurationEl.textContent = "—";
+        statMaxDurationEl.textContent = "—";
+        statAnnualReturnEl.textContent = "—";
+        statMaxDrawdownEl.textContent = "—";
+        maDiffStatsEl.classList.remove("hidden");
+        if (maDiffStatsRowEl) maDiffStatsRowEl.classList.remove("hidden");
+
+        if (!dates || !diffValues || dates.length === 0) {
+          statNegativeDaysEl.textContent = "0 天";
+          return;
+        }
+
+        const n = dates.length;
+
+        // 负偏差天数与连续段
+        let negativeDaysCount = 0;
+        const negativeDurations = [];
+        let currentDuration = 0;
+        diffValues.forEach(function(diff) {
+          if (diff != null && diff < 0) {
+            negativeDaysCount++;
+            currentDuration++;
+          } else {
+            if (currentDuration > 0) {
+              negativeDurations.push(currentDuration);
+              currentDuration = 0;
+            }
+          }
+        });
+        if (currentDuration > 0) negativeDurations.push(currentDuration);
+
+        statNegativeDaysEl.textContent = negativeDaysCount + " 天";
+        if (negativeDurations.length > 0) {
+          const maxDuration = Math.max(...negativeDurations);
+          const avgDuration = (negativeDurations.reduce(function(a, b) { return a + b; }, 0) / negativeDurations.length).toFixed(1);
+          statMaxDurationEl.textContent = maxDuration + " 天";
+          statAvgDurationEl.textContent = avgDuration + " 天";
+        }
+
+        // 年化收益率（通用）：(期末/期初)^(365/天数)-1
+        const closes = (closeValues || []).filter(function(v) { return v != null && !Number.isNaN(Number(v)); });
+        if (closes.length >= 2 && n >= 2) {
+          const firstClose = Number(closes[0]);
+          const lastClose = Number(closes[closes.length - 1]);
+          if (firstClose > 0 && n > 0) {
+            const totalReturn = lastClose / firstClose;
+            const years = n / 365;
+            const annual = Math.pow(totalReturn, 1 / years) - 1;
+            statAnnualReturnEl.textContent = (annual * 100).toFixed(2) + "%";
+          }
+          // 最大回撤及所属区间（峰值日 -> 谷底日）
+          let peak = null;
+          let peakIndex = -1;
+          let maxDrawdown = 0;
+          let ddStartDate = "";
+          let ddEndDate = "";
+          for (let i = 0; i < n; i++) {
+            const c = closeValues[i];
+            if (c == null || Number.isNaN(Number(c))) continue;
+            const v = Number(c);
+            if (peak === null || v > peak) {
+              peak = v;
+              peakIndex = i;
+            }
+            if (peak > 0) {
+              const dd = (peak - v) / peak * 100;
+              if (dd > maxDrawdown) {
+                maxDrawdown = dd;
+                ddStartDate = dates[peakIndex];
+                ddEndDate = dates[i];
+              }
+            }
+          }
+          if (ddStartDate && ddEndDate) {
+            statMaxDrawdownEl.textContent = maxDrawdown.toFixed(2) + "%";
+            maDiffDDStartDate = ddStartDate;
+            maDiffDDEndDate = ddEndDate;
+          } else {
+            statMaxDrawdownEl.textContent = maxDrawdown.toFixed(2) + "%";
+            maDiffDDStartDate = "";
+            maDiffDDEndDate = "";
+          }
+        } else {
+          maDiffDDStartDate = "";
+          maDiffDDEndDate = "";
+        }
+      }
+
+      function updateMaDiffIntervalStats() {
+        const diffValues = maDiffLastVisibleDiffValues || [];
+        let step = parseInt(inputMaDiffIntervalSizeEl?.value, 10);
+        if (!step || step < 1) step = 50;
+        const valid = diffValues.filter(function(v) { return v != null && !Number.isNaN(Number(v)); });
+        if (valid.length === 0) {
+          maDiffIntervalStatsEl.classList.add("hidden");
+          if (maDiffIntervalChart) maDiffIntervalChart.setOption({ xAxis: { data: [] }, series: [{ data: [] }] }, { notMerge: false });
+          return;
+        }
+        maDiffIntervalStatsEl.classList.remove("hidden");
+        if (maDiffStatsRowEl) maDiffStatsRowEl.classList.remove("hidden");
+        const minV = Math.min(...valid);
+        const maxV = Math.max(...valid);
+        const low0 = Math.floor(minV / step) * step;
+        const bins = {};
+        for (let b = low0; b < maxV + step; b += step) {
+          bins[b] = 0;
+        }
+        valid.forEach(function(v) {
+          const b = Math.floor(Number(v) / step) * step;
+          if (bins[b] !== undefined) bins[b] += 1; else bins[b] = 1;
+        });
+        const sortedKeys = Object.keys(bins).map(Number).sort((a, b) => a - b);
+        const labels = sortedKeys.map(function(low) { return low + "~" + (low + step); });
+        const counts = sortedKeys.map(function(low) { return bins[low]; });
+
+        // 当前偏离 = 最近一日的偏差；百分位 = 历史中有多少比例小于当前值
+        const currentDiff = valid[valid.length - 1];
+        const countBelow = valid.filter(function(v) { return v < currentDiff; }).length;
+        const percentile = valid.length > 0 ? (countBelow / valid.length * 100).toFixed(1) : "—";
+        if (maDiffPercentileTextEl) {
+          maDiffPercentileTextEl.textContent = "当前偏离 " + currentDiff.toFixed(2) + " 点，位于历史 " + percentile + "% 分位（高于 " + countBelow + " 个交易日）";
+        }
+
+        // 当前偏离所在区间索引（用于竖向红线）
+        const currentBinLow = Math.floor(Number(currentDiff) / step) * step;
+        const currentBinIndex = sortedKeys.indexOf(currentBinLow);
+
+        // 方差图（直方图）
+        const chartDom = document.getElementById("ma-diff-interval-chart");
+        if (chartDom) {
+          if (!maDiffIntervalChart) {
+            maDiffIntervalChart = echarts.init(chartDom, "dark");
+            window.addEventListener("resize", function() { if (maDiffIntervalChart) maDiffIntervalChart.resize(); });
+          }
+          maDiffIntervalChart.setOption({
+            grid: { left: 48, right: 24, top: 24, bottom: 36 },
+            xAxis: {
+              type: "category",
+              data: labels,
+              axisLabel: { color: "#94a3b8", fontSize: 10, rotate: labels.length > 8 ? 30 : 0 },
+              axisLine: { lineStyle: { color: "rgba(71,85,105,0.6)" } },
+            },
+            yAxis: {
+              type: "value",
+              name: "天数",
+              nameTextStyle: { color: "#94a3b8", fontSize: 10 },
+              axisLabel: { color: "#94a3b8", fontSize: 10 },
+              splitLine: { lineStyle: { color: "rgba(51,65,85,0.4)" } },
+            },
+            tooltip: {
+              trigger: "axis",
+              formatter: function(params) {
+                if (params && params[0]) {
+                  const i = params[0].dataIndex;
+                  return labels[i] + "<br/>天数: " + counts[i];
+                }
+                return "";
+              },
+            },
+            series: [{
+              type: "bar",
+              data: counts,
+              itemStyle: {
+                color: function(params) {
+                  const low = sortedKeys[params.dataIndex];
+                  return low < 0 ? "rgba(148, 163, 184, 0.65)" : "rgba(251, 146, 60, 0.65)";
+                },
+              },
+              barMaxWidth: 36,
+              barBorderRadius: [2, 2, 0, 0],
+              markLine: currentBinIndex >= 0 ? {
+                symbol: ["none", "none"],
+                lineStyle: { color: "#ef4444", width: 2 },
+                label: { show: true, position: "insideEndTop", formatter: "当前", color: "#fca5a5", fontSize: 10 },
+                data: [{ xAxis: labels[currentBinIndex] }],
+              } : undefined,
+            }],
+          }, { notMerge: true });
+        }
+      }
+
+      function addIndexAndLoad(indexIdStr) {
+        if (!indexIdStr) return;
+        const id = parseInt(indexIdStr);
+        if (selectedIndexIds.has(id)) return;
+        selectedIndexIds.add(id);
+        renderSelectedIndices();
+        renderIndicesSelect(allIndices);
+        selectIndexEl.value = "";
+        loadPrices();
+      }
+
+      selectIndexEl.addEventListener("change", function () {
+        const indexId = this.value;
+        if (!indexId) return;
+        addIndexAndLoad(indexId);
+      });
+
+      async function loadPrices() {
+        if (selectedIndexIds.size === 0) {
+          showToast("请至少选择一个指数", "info");
+          return;
+        }
+
+        const startDate = DEFAULT_START_DATE;
+        const endDate = getDefaultEndDate();
+        pricesData = {};
+
+        try {
+          const params = new URLSearchParams();
+          params.append("start_date", startDate);
+          params.append("end_date", endDate);
+          const promises = Array.from(selectedIndexIds).map(async (indexId) => {
+            const data = await apiFetch(`/indices/${indexId}/prices?${params.toString()}`);
+            pricesData[indexId] = data;
+          });
+          await Promise.all(promises);
+          updateChart();
+        } catch (e) {
+          showToast(e.message || "加载数据失败", "error");
+        }
+      }
+
+
+      function updateChart() {
+        if (!chart) return;
+
+        const series = [];
+        const allDates = new Set();
+        const indexNames = [];
+
+        // 只收集当前选中指数的日期，移除某指数后走势图同步去掉该指数
+        selectedIndexIds.forEach((indexId) => {
+          const data = pricesData[indexId];
+          if (data && data.prices) {
+            data.prices.forEach((p) => {
+              const d = p.trade_date;
+              allDates.add(typeof d === "string" ? d : (d && d.toString ? d.toString().slice(0, 10) : String(d)));
+            });
+          }
+        });
+
+        const sortedDates = Array.from(allDates).sort();
+
+        // 为每个选中的指数创建系列
+        const colors = ["#3b82f6", "#22c55e", "#eab308", "#f97316", "#ef4444", "#8b5cf6", "#ec4899"];
+        let colorIndex = 0;
+
+        selectedIndexIds.forEach((indexId) => {
+          const data = pricesData[indexId];
+          if (!data || !data.prices || data.prices.length === 0) return;
+
+          const indexInfo = data.index;
+          const pricesMap = new Map();
+          data.prices.forEach((p) => {
+            const dateKey = typeof p.trade_date === "string" ? p.trade_date : (p.trade_date && p.trade_date.toString ? p.trade_date.toString().slice(0, 10) : String(p.trade_date));
+            pricesMap.set(dateKey, {
+              close: p.close,
+              ma_30: p.ma_30,
+              ma_60: p.ma_60,
+              ma_90: p.ma_90,
+              ma_120: p.ma_120,
+              ma_150: p.ma_150,
+              ma_180: p.ma_180,
+              ma_360: p.ma_360,
+            });
+          });
+
+          // 收盘价（从数据库读取）
+          const closeValues = sortedDates.map((date) => {
+            const priceData = pricesMap.get(date);
+            return priceData && priceData.close != null ? Number(priceData.close) : null;
+          });
+
+          series.push({
+            name: `${indexInfo.name || indexInfo.code}（${indexInfo.code}）`,
+            type: "line",
+            data: closeValues,
+            symbol: "none",
+            smooth: true,
+            lineStyle: { width: 2 },
+            itemStyle: { color: colors[colorIndex % colors.length] },
+            connectNulls: false,
+          });
+
+          // 均线：从数据库读取 ma_* 字段
+          const maColors = {
+            ma30: "#818cf8",
+            ma60: "#22c55e",
+            ma90: "#a78bfa",
+            ma120: "#eab308",
+            ma150: "#fb923c",
+            ma180: "#f97316",
+            ma360: "#f43f5e"
+          };
+
+          if (chkMa30.checked) {
+            const ma30Values = sortedDates.map((date) => {
+              const priceData = pricesMap.get(date);
+              return priceData && priceData.ma_30 != null ? Number(priceData.ma_30) : null;
+            });
+            if (ma30Values.some(function (v) { return v !== null; })) {
+              series.push({
+                name: `${indexInfo.name || indexInfo.code} MA30`,
+                type: "line",
+                data: ma30Values,
+                symbol: "none",
+                smooth: true,
+                lineStyle: { width: 1.5, opacity: 0.7, color: maColors.ma30 },
+                itemStyle: { color: maColors.ma30 },
+                connectNulls: false,
+              });
+            }
+          }
+
+          if (chkMa60.checked) {
+            const ma60Values = sortedDates.map((date) => {
+              const priceData = pricesMap.get(date);
+              return priceData && priceData.ma_60 != null ? Number(priceData.ma_60) : null;
+            });
+            if (ma60Values.some(function (v) { return v !== null; })) {
+              series.push({
+                name: `${indexInfo.name || indexInfo.code} MA60`,
+                type: "line",
+                data: ma60Values,
+                symbol: "none",
+                smooth: true,
+                lineStyle: { width: 1.5, opacity: 0.7, color: maColors.ma60 },
+                itemStyle: { color: maColors.ma60 },
+                connectNulls: false,
+              });
+            }
+          }
+
+          if (chkMa120.checked) {
+            const ma120Values = sortedDates.map((date) => {
+              const priceData = pricesMap.get(date);
+              return priceData && priceData.ma_120 != null ? Number(priceData.ma_120) : null;
+            });
+            if (ma120Values.some(function (v) { return v !== null; })) {
+              series.push({
+                name: `${indexInfo.name || indexInfo.code} MA120`,
+                type: "line",
+                data: ma120Values,
+                symbol: "none",
+                smooth: true,
+                lineStyle: { width: 1.5, opacity: 0.7, color: maColors.ma120 },
+                itemStyle: { color: maColors.ma120 },
+                connectNulls: false,
+              });
+            }
+          }
+
+          if (chkMa180.checked) {
+            const ma180Values = sortedDates.map((date) => {
+              const priceData = pricesMap.get(date);
+              return priceData && priceData.ma_180 != null ? Number(priceData.ma_180) : null;
+            });
+            if (ma180Values.some(function (v) { return v !== null; })) {
+              series.push({
+                name: `${indexInfo.name || indexInfo.code} MA180`,
+                type: "line",
+                data: ma180Values,
+                symbol: "none",
+                smooth: true,
+                lineStyle: { width: 1.5, opacity: 0.7, color: maColors.ma180 },
+                itemStyle: { color: maColors.ma180 },
+                connectNulls: false,
+              });
+            }
+          }
+
+          if (chkMa360.checked) {
+            const ma360Values = sortedDates.map((date) => {
+              const priceData = pricesMap.get(date);
+              return priceData && priceData.ma_360 != null ? Number(priceData.ma_360) : null;
+            });
+            if (ma360Values.some(function (v) { return v !== null; })) {
+              series.push({
+                name: `${indexInfo.name || indexInfo.code} MA360`,
+                type: "line",
+                data: ma360Values,
+                symbol: "none",
+                smooth: true,
+                lineStyle: { width: 1.5, opacity: 0.7, color: maColors.ma360 },
+                itemStyle: { color: maColors.ma360 },
+                connectNulls: false,
+              });
+            }
+          }
+
+          indexNames.push(indexInfo.name || indexInfo.code);
+          colorIndex++;
+        });
+
+        // 更新图表配置，保留时间滑窗（dataZoom）便于快速选择显示时间区域
+        chart.setOption({
+          grid: { left: 60, right: 30, top: 50, bottom: 80 },
+          dataZoom: [
+            {
+              type: "inside",
+              xAxisIndex: 0,
+              start: 0,
+              end: 100,
+              zoomOnMouseWheel: true,
+              moveOnMouseMove: true,
+            },
+            {
+              type: "slider",
+              xAxisIndex: 0,
+              start: 0,
+              end: 100,
+              height: 24,
+              bottom: 10,
+              showDetail: true,
+              brushSelect: false,
+              handleStyle: { color: "#64748b" },
+              dataBackground: { lineStyle: { color: "#475569" }, areaStyle: { color: "rgba(71,85,105,0.2)" } },
+              selectedDataBackground: { lineStyle: { color: "#3b82f6" }, areaStyle: { color: "rgba(59,130,246,0.2)" } },
+              textStyle: { color: "#94a3b8", fontSize: 11 },
+              borderColor: "#475569",
+              fillerColor: "rgba(59,130,246,0.15)",
+            },
+          ],
+          xAxis: { 
+            type: "category",
+            boundaryGap: false,
+            data: sortedDates,
+            axisLine: { lineStyle: { color: "#64748b" } },
+            axisLabel: { color: "#94a3b8", rotate: 45 },
+          },
+          yAxis: {
+            type: "value",
+            scale: false,
+            axisLine: { lineStyle: { color: "#64748b" } },
+            axisLabel: { color: "#94a3b8" },
+            splitLine: { lineStyle: { color: "#1e293b" } },
+          },
+          series: series,
+        }, { notMerge: true });
+
+        chart.resize();
+
+        if (sortedDates.length > 0) {
+          chartMetaEl.textContent = `共 ${indexNames.length} 个指数 · ${sortedDates.length} 个交易日 · ${sortedDates[0]} ~ ${sortedDates[sortedDates.length - 1]}`;
+        } else {
+          chartMetaEl.textContent = "";
+        }
+      }
+
+      // 均线复选框变化时更新图表
+      [chkMa30, chkMa60, chkMa120, chkMa180, chkMa360].forEach(chk => {
+        chk.addEventListener("change", () => {
+          // 只要有选中的指数就更新图表，即使 pricesData 可能还在加载中
+          if (selectedIndexIds.size > 0) {
+            updateChart();
+          }
+        });
+      });
+
+      // 选项卡切换
+      function switchTab(activeTab) {
+        if (activeTab === "price-trend") {
+          tabPriceTrend.className = "px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-indigo-600 text-white";
+          tabMaDiff.className = "px-4 py-2 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-800";
+          contentPriceTrend.classList.remove("hidden");
+          contentMaDiff.classList.add("hidden");
+          // 延迟resize确保图表容器可见
+          setTimeout(() => {
+            if (chart) chart.resize();
+          }, 100);
+        } else {
+          tabPriceTrend.className = "px-4 py-2 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-800";
+          tabMaDiff.className = "px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-indigo-600 text-white";
+          contentPriceTrend.classList.add("hidden");
+          contentMaDiff.classList.remove("hidden");
+          // 延迟resize确保图表容器可见
+          setTimeout(() => {
+            if (maDiffChart) maDiffChart.resize();
+          }, 100);
+        }
+      }
+
+      tabPriceTrend.addEventListener("click", () => {
+        switchTab("price-trend");
+      });
+
+      tabMaDiff.addEventListener("click", () => {
+        switchTab("ma-diff");
+      });
+
+      // 均值偏差趋势分析的指数和周期选择变化
+      selectIndexMaDiffEl.addEventListener("change", () => {
+        loadMaDiffPrices();
+      });
+
+      selectMaPeriodEl.addEventListener("change", () => {
+        if (maDiffPricesData) {
+          updateMaDiffChart();
+        }
+      });
+
+      if (inputMaDiffIntervalSizeEl) {
+        inputMaDiffIntervalSizeEl.addEventListener("change", updateMaDiffIntervalStats);
+        inputMaDiffIntervalSizeEl.addEventListener("input", function() {
+          const v = parseInt(this.value, 10);
+          if (v >= 1) updateMaDiffIntervalStats();
+        });
+      }
+
+      window.addEventListener("load", async () => {
+        initChart();
+        initMaDiffChart();
+        await loadIndices();
+        // 默认显示指数趋势分析
+        switchTab("price-trend");
+      });
+    </script>
+  </body>
+</html>
