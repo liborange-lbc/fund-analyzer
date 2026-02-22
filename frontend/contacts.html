@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>联系人管理 - 基金指数分析系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <header class="border-b border-slate-800 pb-2 mb-4">
+        <div class="flex items-center justify-between">
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight">基金指数分析系统</h1>
+          <nav class="flex flex-wrap items-center gap-1 rounded-full bg-slate-900/80 border border-slate-800 p-1 text-sm">
+            <a href="/" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">指数分析</a>
+            <a href="/static/sync.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">基础数据</a>
+            <a href="/static/db.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">数据管理</a>
+            <a href="/static/live.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">实盘策略</a>
+            <a href="/static/contacts.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium bg-slate-100 text-slate-900 shadow-sm">联系人管理</a>
+            <a href="/static/monitor.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">监控看板</a>
+          </nav>
+        </div>
+      </header>
+
+      <section class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-100">联系人列表</h2>
+            <p class="text-xs text-slate-400 mt-0.5">用于实盘策略订阅人选择。</p>
+          </div>
+          <button id="btn-refresh-contacts" class="text-xs text-indigo-400 hover:text-indigo-300">刷新</button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <input id="input-nickname" class="rounded border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm" placeholder="联系人昵称" />
+          <input id="input-email" class="rounded border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm" placeholder="邮箱地址" />
+          <input id="input-phone" class="rounded border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm" placeholder="手机号（短信）" />
+          <select id="input-provider" class="rounded border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm">
+            <option value="">邮箱类型（可选）</option>
+            <option value="163">163 邮箱</option>
+            <option value="qq">QQ 邮箱</option>
+            <option value="gmail">Gmail 邮箱</option>
+          </select>
+          <input id="input-user" class="rounded border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm" placeholder="邮箱登录账号（可选）" />
+          <input id="input-pass" type="password" class="rounded border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm" placeholder="邮箱授权码（可选）" />
+          <input id="input-sender" class="rounded border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm" placeholder="发件人（可选，默认邮箱账号）" />
+          <input id="input-port" class="rounded border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm" placeholder="端口（可选，587/465）" />
+          <label class="flex items-center gap-2 text-xs text-slate-200 px-2">
+            <input id="input-ssl" type="checkbox" class="rounded border-slate-600 bg-slate-800 text-indigo-600" />
+            SSL（465）
+          </label>
+          <button id="btn-add-contact" class="rounded bg-indigo-600 text-white text-sm px-3 py-2 hover:bg-indigo-500">新增联系人</button>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-800/80 rounded-md">
+          <table class="min-w-full text-xs text-left text-slate-200">
+            <thead class="bg-slate-900/95 border-b border-slate-800">
+              <tr>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">昵称</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">邮箱</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">短信</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">邮箱类型</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">端口</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">SSL</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">登录账号</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">授权码</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">发件人</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">操作</th>
+              </tr>
+            </thead>
+            <tbody id="contacts-body" class="divide-y divide-slate-800/80">
+              <tr>
+                <td colspan="10" class="px-3 py-4 text-center text-slate-400">加载中...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div id="toast-container" class="fixed inset-x-0 top-4 flex justify-center pointer-events-none"></div>
+    </div>
+
+    <script>
+      const apiBase = "";
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toast-container");
+        const el = document.createElement("div");
+        el.className =
+          "pointer-events-auto rounded-md px-4 py-2 text-sm shadow-lg border " +
+          (type === "error"
+            ? "bg-red-900/90 border-red-600 text-red-100"
+            : type === "success"
+            ? "bg-emerald-900/90 border-emerald-600 text-emerald-100"
+            : "bg-slate-900/90 border-slate-700 text-slate-100");
+        el.textContent = message;
+        container.appendChild(el);
+        setTimeout(() => {
+          el.classList.add("opacity-0", "translate-y-2");
+          el.addEventListener("transitionend", () => el.remove(), { once: true });
+        }, 2500);
+      }
+
+      async function apiFetch(path, options = {}) {
+        const resp = await fetch(apiBase + path, {
+          headers: { "Content-Type": "application/json", ...options.headers },
+          ...options,
+        });
+        if (!resp.ok) {
+          let detail = "";
+          try {
+            const data = await resp.json();
+            detail = data.detail || JSON.stringify(data);
+          } catch (e) {
+            detail = resp.statusText;
+          }
+          throw new Error(detail || `请求失败：${resp.status}`);
+        }
+        if (resp.status === 204) return null;
+        try {
+          return await resp.json();
+        } catch (e) {
+          return null;
+        }
+      }
+
+      const tbody = document.getElementById("contacts-body");
+      const btnRefresh = document.getElementById("btn-refresh-contacts");
+      const btnAdd = document.getElementById("btn-add-contact");
+      const inputNickname = document.getElementById("input-nickname");
+      const inputEmail = document.getElementById("input-email");
+      const inputPhone = document.getElementById("input-phone");
+      const inputProvider = document.getElementById("input-provider");
+      const inputUser = document.getElementById("input-user");
+      const inputPass = document.getElementById("input-pass");
+      const inputSender = document.getElementById("input-sender");
+      const inputPort = document.getElementById("input-port");
+      const inputSsl = document.getElementById("input-ssl");
+
+      async function loadContacts() {
+        try {
+          const items = await apiFetch("/contacts");
+          if (!items || items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" class="px-3 py-4 text-center text-slate-400">暂无联系人</td></tr>';
+            return;
+          }
+          tbody.innerHTML = items.map(c => {
+            return `
+              <tr>
+                <td class="px-3 py-2">
+                  <input data-id="${c.id}" data-field="nickname" class="contact-input w-full rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100" value="${c.nickname}" />
+                </td>
+                <td class="px-3 py-2">
+                  <input data-id="${c.id}" data-field="email" class="contact-input w-full rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100" value="${c.email}" />
+                </td>
+                <td class="px-3 py-2">
+                  <input data-id="${c.id}" data-field="phone" class="contact-input w-full rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100" value="${c.phone || ""}" />
+                </td>
+                <td class="px-3 py-2">
+                  <select data-id="${c.id}" data-field="email_provider" class="contact-input w-full rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100">
+                    <option value="" ${!c.email_provider ? "selected" : ""}>—</option>
+                    <option value="163" ${c.email_provider === "163" ? "selected" : ""}>163</option>
+                    <option value="qq" ${c.email_provider === "qq" ? "selected" : ""}>QQ</option>
+                    <option value="gmail" ${c.email_provider === "gmail" ? "selected" : ""}>Gmail</option>
+                  </select>
+                </td>
+                <td class="px-3 py-2">
+                  <input data-id="${c.id}" data-field="email_port" class="contact-input w-full rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100" value="${c.email_port || ""}" />
+                </td>
+                <td class="px-3 py-2 text-center">
+                  <input data-id="${c.id}" data-field="email_use_ssl" type="checkbox" class="contact-input rounded border-slate-600 bg-slate-800 text-indigo-600" ${c.email_use_ssl ? "checked" : ""}/>
+                </td>
+                <td class="px-3 py-2">
+                  <input data-id="${c.id}" data-field="email_user" class="contact-input w-full rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100" value="${c.email_user || ""}" />
+                </td>
+                <td class="px-3 py-2">
+                  <input data-id="${c.id}" data-field="email_password" type="password" class="contact-input w-full rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100" value="" placeholder="" />
+                </td>
+                <td class="px-3 py-2">
+                  <input data-id="${c.id}" data-field="email_sender" class="contact-input w-full rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100" value="${c.email_sender || ""}" />
+                </td>
+                <td class="px-3 py-2 whitespace-nowrap">
+                  <button data-id="${c.id}" class="btn-test text-emerald-400 hover:text-emerald-200 text-xs">测试邮件</button>
+                  <span class="text-slate-600 mx-1">|</span>
+                  <button data-id="${c.id}" class="btn-del text-rose-400 hover:text-rose-200 text-xs">删除</button>
+                </td>
+              </tr>
+            `;
+          }).join("");
+        } catch (e) {
+          showToast(e.message || "加载失败", "error");
+        }
+      }
+
+      tbody.addEventListener("change", async (e) => {
+        const target = e.target;
+        if (!target.classList.contains("contact-input")) return;
+        const id = target.dataset.id;
+        const field = target.dataset.field;
+        let value =
+          target.type === "checkbox"
+            ? !!target.checked
+            : target.value || "";
+        if (field === "email_port") {
+          value = value ? Number(value) : null;
+        }
+        try {
+          await apiFetch(`/contacts/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ [field]: value }),
+          });
+          showToast("已更新", "success");
+        } catch (err) {
+          showToast(err.message || "更新失败", "error");
+        }
+      });
+
+      tbody.addEventListener("click", async (e) => {
+        const target = e.target;
+        if (target.classList.contains("btn-del")) {
+          const id = target.dataset.id;
+          try {
+            await apiFetch(`/contacts/${id}`, { method: "DELETE" });
+            showToast("已删除", "success");
+            loadContacts();
+          } catch (err) {
+            showToast(err.message || "删除失败", "error");
+          }
+        }
+        if (target.classList.contains("btn-test")) {
+          const id = target.dataset.id;
+          try {
+            const res = await apiFetch(`/contacts/${id}/email_test`, { method: "POST" });
+            showToast(res && res.ok ? "连接成功" : (res && res.message) || "连接失败", res && res.ok ? "success" : "error");
+          } catch (err) {
+            showToast(err.message || "测试失败", "error");
+          }
+        }
+      });
+
+      btnAdd.addEventListener("click", async () => {
+        const nickname = (inputNickname.value || "").trim();
+        const email = (inputEmail.value || "").trim();
+        const phone = (inputPhone.value || "").trim();
+        const email_provider = (inputProvider.value || "").trim();
+        const email_user = (inputUser.value || "").trim();
+        const email_password = (inputPass.value || "").trim();
+        const email_sender = (inputSender.value || "").trim();
+        const email_port = Number(inputPort.value || 0) || null;
+        const email_use_ssl = !!inputSsl.checked;
+        if (!nickname || !email) {
+          showToast("请填写昵称和邮箱", "error");
+          return;
+        }
+        try {
+          await apiFetch("/contacts", {
+            method: "POST",
+            body: JSON.stringify({
+              nickname,
+              email,
+              phone,
+              email_provider,
+              email_port,
+              email_use_ssl,
+              email_user,
+              email_password,
+              email_sender,
+            }),
+          });
+          inputNickname.value = "";
+          inputEmail.value = "";
+          inputPhone.value = "";
+          inputProvider.value = "";
+          inputUser.value = "";
+          inputPass.value = "";
+          inputSender.value = "";
+          inputPort.value = "";
+          inputSsl.checked = false;
+          showToast("已新增", "success");
+          loadContacts();
+        } catch (err) {
+          showToast(err.message || "新增失败", "error");
+        }
+      });
+
+      btnRefresh.addEventListener("click", loadContacts);
+      (async () => {
+        await loadContacts();
+      })();
+    </script>
+  </body>
+</html>

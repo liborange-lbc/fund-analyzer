@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>实盘策略 - 基金指数分析系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <header class="border-b border-slate-800 pb-2 mb-4">
+        <div class="flex items-center justify-between">
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight">基金指数分析系统</h1>
+          <nav class="flex rounded-full bg-slate-900/80 border border-slate-800 p-1 text-sm">
+            <a href="/" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">指数分析</a>
+            <a href="/static/sync.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">基础数据</a>
+            <a href="/static/db.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">数据管理</a>
+            <a href="/static/live.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium bg-slate-100 text-slate-900 shadow-sm">实盘策略</a>
+            <a href="/static/contacts.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">联系人管理</a>
+            <a href="/static/monitor.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">监控看板</a>
+          </nav>
+        </div>
+      </header>
+
+      <section class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-100">实盘策略列表</h2>
+            <p class="text-xs text-slate-400 mt-0.5">每天 10:00 自动评估并邮件通知。</p>
+          </div>
+          <button id="btn-refresh-live" class="text-xs text-indigo-400 hover:text-indigo-300">刷新</button>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-800/80 rounded-md">
+          <table class="min-w-full text-xs text-left text-slate-200">
+            <thead class="bg-slate-900/95 border-b border-slate-800">
+              <tr>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">名称</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">指数</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">策略</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">参数</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">订阅联系人</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">启用</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">最近运行</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">最近信号</th>
+                <th class="px-3 py-2 font-medium whitespace-nowrap">操作</th>
+              </tr>
+            </thead>
+            <tbody id="live-strategies-body" class="divide-y divide-slate-800/80">
+              <tr>
+                <td colspan="9" class="px-3 py-4 text-center text-slate-400">加载中...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div id="toast-container" class="fixed inset-x-0 top-4 flex justify-center pointer-events-none"></div>
+    </div>
+
+    <script>
+      const apiBase = "";
+      const BACKTEST_DRAFT_KEY = "fund_analyzer_backtest_draft";
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toast-container");
+        const el = document.createElement("div");
+        el.className =
+          "pointer-events-auto rounded-md px-4 py-2 text-sm shadow-lg border " +
+          (type === "error"
+            ? "bg-red-900/90 border-red-600 text-red-100"
+            : type === "success"
+            ? "bg-emerald-900/90 border-emerald-600 text-emerald-100"
+            : "bg-slate-900/90 border-slate-700 text-slate-100");
+        el.textContent = message;
+        container.appendChild(el);
+        setTimeout(() => {
+          el.classList.add("opacity-0", "translate-y-2");
+          el.addEventListener("transitionend", () => el.remove(), { once: true });
+        }, 2500);
+      }
+
+      async function apiFetch(path, options = {}) {
+        const resp = await fetch(apiBase + path, {
+          headers: { "Content-Type": "application/json", ...options.headers },
+          ...options,
+        });
+        if (!resp.ok) {
+          let detail = "";
+          try {
+            const data = await resp.json();
+            detail = data.detail || JSON.stringify(data);
+          } catch (e) {
+            detail = resp.statusText;
+          }
+          throw new Error(detail || `请求失败：${resp.status}`);
+        }
+        if (resp.status === 204) return null;
+        try {
+          return await resp.json();
+        } catch (e) {
+          return null;
+        }
+      }
+
+      const tbody = document.getElementById("live-strategies-body");
+      const btnRefresh = document.getElementById("btn-refresh-live");
+      let contactList = [];
+      let liveStrategies = [];
+
+      function renderParams(params) {
+        if (!params) return "";
+        return Object.keys(params).map(k => `${k}=${params[k]}`).join(", ");
+      }
+
+      function renderContactOptions(selectedIds) {
+        const selected = new Set((selectedIds || []).map(Number));
+        return contactList.map(c => {
+          const isSelected = selected.has(c.id) ? "selected" : "";
+          return `<option value="${c.id}" ${isSelected}>${c.nickname}</option>`;
+        }).join("");
+      }
+
+      function formatDateShort(value) {
+        if (!value) return { short: "—", full: "—" };
+        const dt = new Date(value);
+        if (Number.isNaN(dt.getTime())) {
+          return { short: value, full: value };
+        }
+        const short = dt.toISOString().slice(0, 10);
+        const full = dt.toLocaleString("zh-CN", { hour12: false });
+        return { short, full };
+      }
+
+      async function loadLiveStrategies() {
+        try {
+          const items = await apiFetch("/live_strategies");
+          liveStrategies = items || [];
+          if (!items || items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-slate-400">暂无策略</td></tr>';
+            return;
+          }
+          tbody.innerHTML = items.map(s => {
+            const enabled = s.enabled ? "checked" : "";
+            const lastSignal = s.last_signal_date
+              ? `${s.last_signal_date} ${s.last_signal_action || ""} @${s.last_signal_price || ""}`
+              : "—";
+            const lastRun = formatDateShort(s.last_run_at);
+            const selectedIds = s.email_subscribers || [];
+            return `
+              <tr>
+                <td class="px-3 py-2 whitespace-nowrap">${s.name}</td>
+                <td class="px-3 py-2 whitespace-nowrap">${s.index_name}(${s.index_code})</td>
+                <td class="px-3 py-2 whitespace-nowrap">${s.strategy}</td>
+                <td class="px-3 py-2">${renderParams(s.params)}</td>
+                <td class="px-3 py-2">
+                  <select data-id="${s.id}" multiple class="live-contacts w-full rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100">
+                    ${renderContactOptions(selectedIds)}
+                  </select>
+                </td>
+                <td class="px-3 py-2">
+                  <input type="checkbox" data-id="${s.id}" class="live-enabled rounded border-slate-600 bg-slate-800 text-indigo-600" ${enabled}/>
+                </td>
+                <td class="px-3 py-2 whitespace-nowrap" title="${lastRun.full}">${lastRun.short}</td>
+                <td class="px-3 py-2">${lastSignal}</td>
+                <td class="px-3 py-2 whitespace-nowrap">
+                  <button data-id="${s.id}" class="btn-copy text-emerald-400 hover:text-emerald-200 text-xs">复制到回测</button>
+                  <span class="text-slate-600 mx-1">|</span>
+                  <button data-id="${s.id}" class="btn-run text-indigo-400 hover:text-indigo-200 text-xs">运行</button>
+                  <span class="text-slate-600 mx-1">|</span>
+                  <button data-id="${s.id}" class="btn-del text-rose-400 hover:text-rose-200 text-xs">删除</button>
+                </td>
+              </tr>
+            `;
+          }).join("");
+        } catch (e) {
+          showToast(e.message || "加载失败", "error");
+        }
+      }
+
+      tbody.addEventListener("change", async (e) => {
+        const target = e.target;
+        if (target.classList.contains("live-enabled")) {
+          const id = target.dataset.id;
+          try {
+            await apiFetch(`/live_strategies/${id}`, {
+              method: "PATCH",
+              body: JSON.stringify({ enabled: target.checked }),
+            });
+            showToast("已更新", "success");
+          } catch (err) {
+            showToast(err.message || "更新失败", "error");
+            target.checked = !target.checked;
+          }
+          return;
+        }
+        if (target.classList.contains("live-contacts")) {
+          const id = target.dataset.id;
+          const selected = Array.from(target.selectedOptions || []).map(o => Number(o.value));
+          try {
+            await apiFetch(`/live_strategies/${id}`, {
+              method: "PATCH",
+              body: JSON.stringify({ email_subscribers: selected }),
+            });
+            showToast("联系人已更新", "success");
+          } catch (err) {
+            showToast(err.message || "更新失败", "error");
+          }
+        }
+      });
+
+      tbody.addEventListener("click", async (e) => {
+        const target = e.target;
+        if (target.classList.contains("btn-copy")) {
+          const id = Number(target.dataset.id);
+          const item = liveStrategies.find(s => s.id === id);
+          if (!item) {
+            showToast("未找到策略数据", "error");
+            return;
+          }
+          const draft = {
+            index_id: item.index_id,
+            index_code: item.index_code,
+            strategy: item.strategy,
+            params: item.params || {},
+          };
+          try {
+            localStorage.setItem(BACKTEST_DRAFT_KEY, JSON.stringify(draft));
+            window.location.href = "/?tab=backtest";
+          } catch (err) {
+            showToast("复制失败，请稍后重试", "error");
+          }
+          return;
+        }
+        if (target.classList.contains("btn-run")) {
+          const id = target.dataset.id;
+          try {
+            const row = target.closest("tr");
+            const select = row ? row.querySelector(".live-contacts") : null;
+            if (select) {
+              const selected = Array.from(select.selectedOptions || []).map(o => Number(o.value));
+              await apiFetch(`/live_strategies/${id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ email_subscribers: selected }),
+              });
+            }
+            await apiFetch(`/live_strategies/${id}/run?force_email=true`, { method: "POST" });
+            showToast("已运行", "success");
+            loadLiveStrategies();
+          } catch (err) {
+            showToast(err.message || "运行失败", "error");
+          }
+        }
+        if (target.classList.contains("btn-del")) {
+          const id = target.dataset.id;
+          try {
+            await apiFetch(`/live_strategies/${id}`, { method: "DELETE" });
+            showToast("已删除", "success");
+            loadLiveStrategies();
+          } catch (err) {
+            showToast(err.message || "删除失败", "error");
+          }
+        }
+      });
+
+      async function loadContacts() {
+        try {
+          const items = await apiFetch("/contacts");
+          contactList = items || [];
+        } catch (e) {
+          contactList = [];
+        }
+      }
+
+      btnRefresh.addEventListener("click", async () => {
+        await loadContacts();
+        loadLiveStrategies();
+      });
+
+      (async () => {
+        await loadContacts();
+        loadLiveStrategies();
+      })();
+    </script>
+  </body>
+</html>

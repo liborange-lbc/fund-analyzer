@@ -3,6 +3,7 @@ from io import BytesIO
 from typing import List, Optional
 from urllib.parse import quote
 import json
+import logging
 
 import pandas as pd
 
@@ -10,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response, StreamingResponse
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, text, func
 from sqlalchemy.orm import Session
 
 from .config import (
@@ -29,10 +30,21 @@ from .fetcher import (
     fetch_history_for_indices,
     recalculate_moving_averages_and_diffs,
 )
+from .backtest import (
+    backtest_dca,
+    backtest_smart_dca,
+    backtest_mean_reversion,
+    backtest_mean_reversion_multi,
+    backtest_trend_following,
+    backtest_ma_diff,
+    compute_metrics,
+)
 from .wechat import get_subscriber_list, send_custom_message
-from .models import Index, IndexPrice, DbAuditLog, SyncJobLog, NotificationSetting
+from .emailer import test_smtp_connection, send_email
+from .models import Index, IndexPrice, DbAuditLog, SyncJobLog, NotificationSetting, LiveStrategy, Contact, EmailConfig
 from .schemas import (
     IndexCreate,
+    IndexUpdate,
     IndexRead,
     PriceQueryResponse,
     IndexPriceRead,
@@ -51,10 +63,30 @@ from .schemas import (
     NotificationSettingUpdate,
     WechatSubscriberRead,
     SendCustomMessageRequest,
+    BacktestRequest,
+    BacktestResponse,
+    BacktestPointRead,
+    BacktestTradeRead,
+    BacktestMetrics,
+    LiveStrategyCreate,
+    LiveStrategyRead,
+    LiveStrategyUpdate,
+    LiveStrategyFromBacktest,
+    ContactCreate,
+    ContactRead,
+    ContactUpdate,
+    EmailConfigRead,
+    EmailConfigUpdate,
+    MonitorDailyChangeItem,
+    MonitorRiskAlertItem,
+    MonitorStrategyTodoItem,
+    MonitorDailySummary,
+    MonitorDashboard,
 )
-from .scheduler import start_scheduler, shutdown_scheduler
+from .scheduler import start_scheduler, shutdown_scheduler, run_live_strategies, _evaluate_live_signal
 
 app = FastAPI(title="基金指数分析系统")
+_log = logging.getLogger("fund_analyzer.main")
 
 app.add_middleware(
     CORSMiddleware,
@@ -119,6 +151,7 @@ def add_index(index_in: IndexCreate, db: Session = Depends(get_db)):
         code=index_in.code.strip(),
         name=index_in.name.strip(),
         start_date=index_in.start_date,
+        source=index_in.source.strip() if index_in.source else None,
     )
     db.add(obj)
     db.commit()
@@ -135,9 +168,148 @@ def add_index(index_in: IndexCreate, db: Session = Depends(get_db)):
     return obj
 
 
+@app.patch("/indices/{index_id}", response_model=IndexRead)
+def update_index(index_id: int, index_in: IndexUpdate, db: Session = Depends(get_db)):
+    obj = db.query(Index).filter(Index.id == index_id).one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="指数不存在")
+
+    if index_in.start_date is not None:
+        obj.start_date = index_in.start_date
+    if index_in.source is not None:
+        obj.source = index_in.source.strip() if index_in.source else None
+
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
 @app.get("/indices", response_model=List[IndexRead])
 def list_indices(db: Session = Depends(get_db)):
     return db.query(Index).order_by(Index.id.asc()).all()
+
+
+@app.get("/monitor/dashboard", response_model=MonitorDashboard)
+def monitor_dashboard(db: Session = Depends(get_db)):
+    latest_date = db.query(func.max(IndexPrice.trade_date)).scalar()
+    if not latest_date:
+        summary = MonitorDailySummary(
+            date=None,
+            total_indices=0,
+            up_count=0,
+            down_count=0,
+            flat_count=0,
+            top_gainers=[],
+            top_losers=[],
+        )
+        return MonitorDashboard(
+            date=None,
+            daily_summary=summary,
+            risk_alerts=[],
+            strategy_todos=[],
+        )
+
+    rows = (
+        db.query(IndexPrice)
+        .filter(IndexPrice.trade_date == latest_date)
+        .order_by(IndexPrice.index_code.asc())
+        .all()
+    )
+
+    up = down = flat = 0
+    daily_items: list[MonitorDailyChangeItem] = []
+    for row in rows:
+        change = row.change_pct if row.change_pct is not None else 0.0
+        if change > 0:
+            up += 1
+        elif change < 0:
+            down += 1
+        else:
+            flat += 1
+        daily_items.append(
+            MonitorDailyChangeItem(
+                index_code=row.index_code,
+                index_name=row.index_name,
+                close=row.close,
+                change_pct=row.change_pct,
+            )
+        )
+
+    gainers = sorted(
+        [i for i in daily_items if i.change_pct is not None],
+        key=lambda x: x.change_pct,
+        reverse=True,
+    )[:5]
+    losers = sorted(
+        [i for i in daily_items if i.change_pct is not None],
+        key=lambda x: x.change_pct,
+    )[:5]
+
+    risk_alerts: list[MonitorRiskAlertItem] = []
+    for row in rows:
+        reasons = []
+        if row.change_pct is not None and row.change_pct <= -3:
+            reasons.append("日跌幅<=-3%")
+        if row.ma60_diff is not None and row.ma60_diff <= -100:
+            reasons.append("MA60偏差<=-100")
+        if row.ma120_diff is not None and row.ma120_diff <= -150:
+            reasons.append("MA120偏差<=-150")
+        if reasons:
+            risk_alerts.append(
+                MonitorRiskAlertItem(
+                    index_code=row.index_code,
+                    index_name=row.index_name,
+                    reason="; ".join(reasons),
+                    change_pct=row.change_pct,
+                    ma60_diff=row.ma60_diff,
+                )
+            )
+
+    # 策略待处理事项：展示最新交易日触发信号的策略
+    strategy_todos: list[MonitorStrategyTodoItem] = []
+    strategies = db.query(LiveStrategy).filter(LiveStrategy.enabled.is_(True)).all()
+    for strat in strategies:
+        latest_row = (
+            db.query(IndexPrice)
+            .filter(IndexPrice.index_code == strat.index_code)
+            .order_by(IndexPrice.trade_date.desc())
+            .first()
+        )
+        if not latest_row:
+            continue
+        try:
+            params = json.loads(strat.params) if strat.params else {}
+        except Exception:
+            params = {}
+        action, detail, _debug = _evaluate_live_signal(db, strat, params, latest_row)
+        if action in ("buy", "sell"):
+            strategy_todos.append(
+                MonitorStrategyTodoItem(
+                    strategy_id=strat.id,
+                    name=strat.name,
+                    index_code=strat.index_code,
+                    index_name=strat.index_name,
+                    action=action,
+                    detail=detail,
+                )
+            )
+
+    summary = MonitorDailySummary(
+        date=latest_date.isoformat() if latest_date else None,
+        total_indices=len(rows),
+        up_count=up,
+        down_count=down,
+        flat_count=flat,
+        top_gainers=gainers,
+        top_losers=losers,
+    )
+
+    return MonitorDashboard(
+        date=latest_date.isoformat() if latest_date else None,
+        daily_summary=summary,
+        risk_alerts=risk_alerts,
+        strategy_todos=strategy_todos,
+    )
 
 
 @app.get("/us-indices/quote", response_model=List[UsIndexQuoteRead])
@@ -580,6 +752,132 @@ def export_index_prices_excel(
     )
 
 
+@app.post("/backtest", response_model=BacktestResponse)
+def run_backtest(payload: BacktestRequest, db: Session = Depends(get_db)):
+    index_obj = db.query(Index).filter(Index.id == payload.index_id).one_or_none()
+    if not index_obj:
+        raise HTTPException(status_code=404, detail="指数不存在")
+    if payload.initial_cash <= 0:
+        raise HTTPException(status_code=400, detail="initial_cash 必须大于 0")
+
+    q = db.query(IndexPrice).filter(IndexPrice.index_code == index_obj.code)
+    if payload.start_date:
+        q = q.filter(IndexPrice.trade_date >= payload.start_date)
+    if payload.end_date:
+        q = q.filter(IndexPrice.trade_date <= payload.end_date)
+    q = q.order_by(IndexPrice.trade_date.asc())
+    rows = q.all()
+    if not rows:
+        raise HTTPException(status_code=404, detail="该日期范围内无行情数据")
+
+    strategy = payload.strategy
+    params: dict = {}
+    try:
+        if strategy == "dca":
+            if not payload.dca:
+                raise HTTPException(status_code=400, detail="dca 配置不能为空")
+            if payload.dca.amount <= 0:
+                raise HTTPException(status_code=400, detail="dca.amount 必须大于 0")
+            params = {
+                "amount": payload.dca.amount,
+                "frequency": payload.dca.frequency,
+            }
+            curve, trades, total_invested = backtest_dca(
+                rows=rows,
+                initial_cash=payload.initial_cash,
+                periodic_amount=payload.dca.amount,
+                frequency=payload.dca.frequency,
+            )
+        elif strategy == "smart_dca":
+            if not payload.smart_dca:
+                raise HTTPException(status_code=400, detail="smart_dca 配置不能为空")
+            params = {
+                "base_amount": payload.smart_dca.base_amount,
+                "frequency": payload.smart_dca.frequency,
+                "step_pct": payload.smart_dca.step_pct,
+                "max_multiplier": payload.smart_dca.max_multiplier,
+            }
+            curve, trades, total_invested = backtest_smart_dca(
+                rows=rows,
+                initial_cash=payload.initial_cash,
+                base_amount=payload.smart_dca.base_amount,
+                frequency=payload.smart_dca.frequency,
+                step_pct=payload.smart_dca.step_pct,
+                max_multiplier=payload.smart_dca.max_multiplier,
+            )
+        elif strategy == "mean_reversion":
+            if not payload.mean_reversion:
+                raise HTTPException(status_code=400, detail="mean_reversion 配置不能为空")
+            params = {
+                "ma_period": payload.mean_reversion.ma_period,
+                "buy_threshold_pct": payload.mean_reversion.buy_threshold_pct,
+                "sell_threshold_pct": payload.mean_reversion.sell_threshold_pct,
+            }
+            curve, trades, total_invested = backtest_mean_reversion(
+                rows=rows,
+                initial_cash=payload.initial_cash,
+                ma_period=payload.mean_reversion.ma_period,
+                buy_threshold_pct=payload.mean_reversion.buy_threshold_pct,
+                sell_threshold_pct=payload.mean_reversion.sell_threshold_pct,
+            )
+        elif strategy == "mean_reversion_multi":
+            if not payload.mean_reversion_multi:
+                raise HTTPException(status_code=400, detail="mean_reversion_multi 配置不能为空")
+            params = {
+                "ma_period": payload.mean_reversion_multi.ma_period,
+                "step_pct": payload.mean_reversion_multi.step_pct,
+                "order_amount": payload.mean_reversion_multi.order_amount,
+            }
+            curve, trades, total_invested = backtest_mean_reversion_multi(
+                rows=rows,
+                initial_cash=payload.initial_cash,
+                ma_period=payload.mean_reversion_multi.ma_period,
+                step_pct=payload.mean_reversion_multi.step_pct,
+                order_amount=payload.mean_reversion_multi.order_amount,
+            )
+        elif strategy == "ma_diff":
+            if not payload.ma_diff:
+                raise HTTPException(status_code=400, detail="ma_diff 配置不能为空")
+            params = {
+                "ma_period": payload.ma_diff.ma_period,
+                "buy_diff": payload.ma_diff.buy_diff,
+                "sell_diff": payload.ma_diff.sell_diff,
+            }
+            curve, trades, total_invested = backtest_ma_diff(
+                rows=rows,
+                initial_cash=payload.initial_cash,
+                ma_period=payload.ma_diff.ma_period,
+                buy_threshold=payload.ma_diff.buy_diff,
+                sell_threshold=payload.ma_diff.sell_diff,
+            )
+        elif strategy == "trend_following":
+            if not payload.trend_following:
+                raise HTTPException(status_code=400, detail="trend_following 配置不能为空")
+            params = {
+                "ma_period": payload.trend_following.ma_period,
+            }
+            curve, trades, total_invested = backtest_trend_following(
+                rows=rows,
+                initial_cash=payload.initial_cash,
+                ma_period=payload.trend_following.ma_period,
+            )
+        else:
+            raise HTTPException(status_code=400, detail="strategy 不支持")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    metrics_raw = compute_metrics(curve, total_invested)
+    metrics = BacktestMetrics(**metrics_raw)
+    return BacktestResponse(
+        index=IndexRead.model_validate(index_obj),
+        strategy=strategy,
+        params=params,
+        metrics=metrics,
+        equity_curve=[BacktestPointRead.model_validate(p.__dict__) for p in curve],
+        trades=[BacktestTradeRead.model_validate(t.__dict__) for t in trades],
+    )
+
+
 @app.get("/indices/{index_id}/date_status", response_model=IndexDateStatus)
 def get_index_date_status(
     index_id: int,
@@ -832,9 +1130,8 @@ def update_table_row(
             detail=f"只有 indices 表支持修改操作，表 {table_name} 不支持修改"
         )
     
-    # indices 表特殊处理：只允许修改 start_date 字段
-    # 检查是否只更新了 start_date
-    allowed_fields = {"start_date"}
+    # indices 表特殊处理：只允许修改 start_date/source 字段
+    allowed_fields = {"start_date", "source"}
     invalid_fields = [f for f in updates.keys() if f not in allowed_fields]
     if invalid_fields:
         raise HTTPException(
@@ -1028,6 +1325,371 @@ def wechat_send_custom(body: SendCustomMessageRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"发送失败: {e}")
+
+
+# 实盘策略
+@app.post("/live_strategies", response_model=LiveStrategyRead)
+def create_live_strategy(body: LiveStrategyCreate, db: Session = Depends(get_db)):
+    index_obj = db.query(Index).filter(Index.id == body.index_id).one_or_none()
+    if not index_obj:
+        raise HTTPException(status_code=404, detail="指数不存在")
+    params_json = json.dumps(body.params or {}, ensure_ascii=False)
+    emails = ",".join([str(i) for i in (body.email_subscribers or []) if str(i).strip()])
+    obj = LiveStrategy(
+        name=body.name.strip(),
+        index_id=index_obj.id,
+        index_code=index_obj.code,
+        index_name=index_obj.name,
+        strategy=body.strategy,
+        params=params_json,
+        email_subscribers=emails or None,
+        enabled=body.enabled,
+    )
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return LiveStrategyRead(
+        id=obj.id,
+        name=obj.name,
+        index_id=obj.index_id,
+        index_code=obj.index_code,
+        index_name=obj.index_name,
+        strategy=obj.strategy,
+        params=body.params or {},
+        email_subscribers=body.email_subscribers or [],
+        enabled=obj.enabled,
+        last_run_at=obj.last_run_at,
+        last_signal_date=obj.last_signal_date,
+        last_signal_action=obj.last_signal_action,
+        last_signal_price=obj.last_signal_price,
+        last_signal_detail=obj.last_signal_detail,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+    )
+
+
+@app.post("/live_strategies/from_backtest", response_model=LiveStrategyRead)
+def create_live_strategy_from_backtest(
+    body: LiveStrategyFromBacktest, db: Session = Depends(get_db)
+):
+    bt = body.backtest
+    index_obj = db.query(Index).filter(Index.id == bt.index_id).one_or_none()
+    if not index_obj:
+        raise HTTPException(status_code=404, detail="指数不存在")
+    params = {}
+    if bt.strategy == "dca" and bt.dca:
+        params = bt.dca.model_dump()
+    elif bt.strategy == "smart_dca" and bt.smart_dca:
+        params = bt.smart_dca.model_dump()
+    elif bt.strategy == "mean_reversion" and bt.mean_reversion:
+        params = bt.mean_reversion.model_dump()
+    elif bt.strategy == "mean_reversion_multi" and bt.mean_reversion_multi:
+        params = bt.mean_reversion_multi.model_dump()
+    elif bt.strategy == "ma_diff" and bt.ma_diff:
+        params = bt.ma_diff.model_dump()
+    elif bt.strategy == "trend_following" and bt.trend_following:
+        params = bt.trend_following.model_dump()
+    else:
+        raise HTTPException(status_code=400, detail="策略参数缺失")
+    name = body.name or f"{index_obj.name}-{bt.strategy}"
+    obj = LiveStrategy(
+        name=name.strip(),
+        index_id=index_obj.id,
+        index_code=index_obj.code,
+        index_name=index_obj.name,
+        strategy=bt.strategy,
+        params=json.dumps(params, ensure_ascii=False),
+        email_subscribers=None,
+        enabled=True,
+    )
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return LiveStrategyRead(
+        id=obj.id,
+        name=obj.name,
+        index_id=obj.index_id,
+        index_code=obj.index_code,
+        index_name=obj.index_name,
+        strategy=obj.strategy,
+        params=params,
+        email_subscribers=[],
+        enabled=obj.enabled,
+        last_run_at=obj.last_run_at,
+        last_signal_date=obj.last_signal_date,
+        last_signal_action=obj.last_signal_action,
+        last_signal_price=obj.last_signal_price,
+        last_signal_detail=obj.last_signal_detail,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+    )
+
+
+@app.get("/live_strategies", response_model=list[LiveStrategyRead])
+def list_live_strategies(db: Session = Depends(get_db)):
+    items = db.query(LiveStrategy).order_by(LiveStrategy.id.asc()).all()
+    result = []
+    for it in items:
+        try:
+            params = json.loads(it.params) if it.params else {}
+        except Exception:
+            params = {}
+        emails = [int(e) for e in (it.email_subscribers or "").replace(";", ",").split(",") if e.strip().isdigit()]
+        result.append(
+            LiveStrategyRead(
+                id=it.id,
+                name=it.name,
+                index_id=it.index_id,
+                index_code=it.index_code,
+                index_name=it.index_name,
+                strategy=it.strategy,
+                params=params,
+                email_subscribers=emails,
+                enabled=it.enabled,
+                last_run_at=it.last_run_at,
+                last_signal_date=it.last_signal_date,
+                last_signal_action=it.last_signal_action,
+                last_signal_price=it.last_signal_price,
+                last_signal_detail=it.last_signal_detail,
+                created_at=it.created_at,
+                updated_at=it.updated_at,
+            )
+        )
+    return result
+
+
+@app.patch("/live_strategies/{strategy_id}", response_model=LiveStrategyRead)
+def update_live_strategy(
+    strategy_id: int, body: LiveStrategyUpdate, db: Session = Depends(get_db)
+):
+    obj = db.query(LiveStrategy).filter(LiveStrategy.id == strategy_id).one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="策略不存在")
+    if body.name is not None:
+        obj.name = body.name.strip()
+    if body.enabled is not None:
+        obj.enabled = body.enabled
+    if body.params is not None:
+        obj.params = json.dumps(body.params, ensure_ascii=False)
+    if body.email_subscribers is not None:
+        obj.email_subscribers = ",".join([str(i) for i in body.email_subscribers if str(i).strip()]) or None
+    db.commit()
+    db.refresh(obj)
+    try:
+        params = json.loads(obj.params) if obj.params else {}
+    except Exception:
+        params = {}
+    emails = [int(e) for e in (obj.email_subscribers or "").replace(";", ",").split(",") if e.strip().isdigit()]
+    return LiveStrategyRead(
+        id=obj.id,
+        name=obj.name,
+        index_id=obj.index_id,
+        index_code=obj.index_code,
+        index_name=obj.index_name,
+        strategy=obj.strategy,
+        params=params,
+        email_subscribers=emails,
+        enabled=obj.enabled,
+        last_run_at=obj.last_run_at,
+        last_signal_date=obj.last_signal_date,
+        last_signal_action=obj.last_signal_action,
+        last_signal_price=obj.last_signal_price,
+        last_signal_detail=obj.last_signal_detail,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+    )
+
+
+@app.delete("/live_strategies/{strategy_id}")
+def delete_live_strategy(strategy_id: int, db: Session = Depends(get_db)):
+    obj = db.query(LiveStrategy).filter(LiveStrategy.id == strategy_id).one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="策略不存在")
+    db.delete(obj)
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/live_strategies/{strategy_id}/run")
+def run_live_strategy_now(strategy_id: int, force_email: bool = False):
+    results = run_live_strategies(strategy_id=strategy_id, force_email=force_email)
+    return {"ok": True, "results": results}
+
+
+# 联系人管理
+_EMAIL_PROVIDERS = {"163", "qq", "gmail"}
+
+
+def _normalize_email_provider(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    v = value.strip().lower()
+    if not v:
+        return None
+    if v not in _EMAIL_PROVIDERS:
+        raise HTTPException(status_code=400, detail="邮箱类型仅支持 163/qq/gmail")
+    return v
+
+
+@app.get("/contacts", response_model=list[ContactRead])
+def list_contacts(db: Session = Depends(get_db)):
+    return db.query(Contact).order_by(Contact.id.asc()).all()
+
+
+@app.post("/contacts", response_model=ContactRead)
+def create_contact(body: ContactCreate, db: Session = Depends(get_db)):
+    email = body.email.strip()
+    existing = db.query(Contact).filter(Contact.email == email).one_or_none()
+    if existing:
+        existing.nickname = body.nickname.strip()
+        existing.phone = (body.phone or "").strip() or None
+        existing.email_provider = _normalize_email_provider(body.email_provider)
+        existing.email_port = body.email_port
+        existing.email_use_ssl = body.email_use_ssl
+        existing.email_user = (body.email_user or "").strip() or None
+        existing.email_password = (body.email_password or "").strip() or None
+        existing.email_sender = (body.email_sender or "").strip() or None
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    obj = Contact(
+        nickname=body.nickname.strip(),
+        email=email,
+        phone=(body.phone or "").strip() or None,
+        email_provider=_normalize_email_provider(body.email_provider),
+        email_port=body.email_port,
+        email_use_ssl=body.email_use_ssl,
+        email_user=(body.email_user or "").strip() or None,
+        email_password=(body.email_password or "").strip() or None,
+        email_sender=(body.email_sender or "").strip() or None,
+    )
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@app.patch("/contacts/{contact_id}", response_model=ContactRead)
+def update_contact(contact_id: int, body: ContactUpdate, db: Session = Depends(get_db)):
+    obj = db.query(Contact).filter(Contact.id == contact_id).one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="联系人不存在")
+    if body.nickname is not None:
+        obj.nickname = body.nickname.strip()
+    if body.email is not None:
+        obj.email = body.email.strip()
+    if body.phone is not None:
+        obj.phone = body.phone.strip() or None
+    if body.email_provider is not None:
+        obj.email_provider = _normalize_email_provider(body.email_provider)
+    if body.email_port is not None:
+        obj.email_port = body.email_port
+    if body.email_use_ssl is not None:
+        obj.email_use_ssl = body.email_use_ssl
+    if body.email_user is not None:
+        obj.email_user = body.email_user.strip() or None
+    if body.email_password is not None:
+        obj.email_password = body.email_password.strip() or None
+    if body.email_sender is not None:
+        obj.email_sender = body.email_sender.strip() or None
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@app.delete("/contacts/{contact_id}")
+def delete_contact(contact_id: int, db: Session = Depends(get_db)):
+    obj = db.query(Contact).filter(Contact.id == contact_id).one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="联系人不存在")
+    db.delete(obj)
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/contacts/{contact_id}/email_test")
+def test_contact_email(contact_id: int, db: Session = Depends(get_db)):
+    obj = db.query(Contact).filter(Contact.id == contact_id).one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="联系人不存在")
+    smtp_config = None
+    if obj.email_provider or obj.email_user or obj.email_password or obj.email_sender or obj.email_port:
+        smtp_config = {
+            "provider": obj.email_provider,
+            "port": obj.email_port,
+            "use_ssl": obj.email_use_ssl,
+            "username": obj.email_user,
+            "password": obj.email_password,
+            "sender": obj.email_sender or obj.email_user or obj.email,
+        }
+    safe_config = None
+    if smtp_config:
+        safe_config = dict(smtp_config)
+        if safe_config.get("password"):
+            safe_config["password"] = "***"
+    _log.info(
+        "[测试邮件] contact_id=%s email=%s provider=%s config=%s",
+        obj.id,
+        obj.email,
+        obj.email_provider,
+        safe_config,
+    )
+    ok, msg = test_smtp_connection(smtp_config=smtp_config)
+    _log.info("[测试邮件] 连接结果: ok=%s msg=%s", ok, msg)
+    if not ok:
+        return {"ok": False, "message": msg}
+    subject = "实盘策略测试邮件"
+    body = "这是一封测试邮件，用于验证 SMTP 配置是否可用。"
+    sent = send_email(subject, body, [obj.email], smtp_config=smtp_config)
+    _log.info("[测试邮件] 发送结果: sent=%s", sent)
+    return {"ok": sent, "message": "已发送" if sent else "发送失败"}
+
+
+# 邮箱配置
+@app.get("/email_config", response_model=Optional[EmailConfigRead])
+def get_email_config(db: Session = Depends(get_db)):
+    cfg = db.query(EmailConfig).order_by(EmailConfig.id.desc()).first()
+    if not cfg:
+        return None
+    return EmailConfigRead(
+        host=cfg.host,
+        port=cfg.port,
+        username=cfg.username,
+        sender=cfg.sender,
+        use_tls=cfg.use_tls,
+    )
+
+
+@app.put("/email_config", response_model=EmailConfigRead)
+def upsert_email_config(body: EmailConfigUpdate, db: Session = Depends(get_db)):
+    cfg = db.query(EmailConfig).order_by(EmailConfig.id.desc()).first()
+    if cfg is None:
+        cfg = EmailConfig(
+            host=body.host.strip(),
+            port=body.port,
+            username=(body.username or "").strip() or None,
+            password=(body.password or "").strip() or None,
+            sender=body.sender.strip(),
+            use_tls=body.use_tls,
+        )
+        db.add(cfg)
+    else:
+        cfg.host = body.host.strip()
+        cfg.port = body.port
+        cfg.username = (body.username or "").strip() or None
+        cfg.password = (body.password or "").strip() or None
+        cfg.sender = body.sender.strip()
+        cfg.use_tls = body.use_tls
+    db.commit()
+    db.refresh(cfg)
+    return EmailConfigRead(
+        host=cfg.host,
+        port=cfg.port,
+        username=cfg.username,
+        sender=cfg.sender,
+        use_tls=cfg.use_tls,
+    )
 
 
 # 前端页面入口（单页应用）

@@ -27,6 +27,7 @@ class Index(Base):
     code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(200), unique=True, nullable=False, index=True)
     start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=now_shanghai
     )
@@ -139,6 +140,84 @@ class NotificationSetting(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     event_type: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     enabled: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=now_shanghai
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=now_shanghai, onupdate=now_shanghai
+    )
+
+
+class LiveStrategy(Base):
+    """
+    实盘策略：每日定时评估信号并通知。
+    params 保存策略参数 JSON 字符串。
+    """
+
+    __tablename__ = "live_strategies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    index_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    index_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    index_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    strategy: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    params: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    email_subscribers: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    enabled: Mapped[bool] = mapped_column(default=True, index=True)
+    last_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_signal_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    last_signal_action: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    last_signal_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    last_signal_detail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=now_shanghai
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=now_shanghai, onupdate=now_shanghai
+    )
+
+
+class Contact(Base):
+    """
+    联系人：用于实盘策略订阅与通知配置。
+    """
+
+    __tablename__ = "contacts"
+    __table_args__ = (UniqueConstraint("email", name="uq_contact_email"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    nickname: Mapped[str] = mapped_column(String(64), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    email_provider: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    email_port: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    email_use_ssl: Mapped[Optional[bool]] = mapped_column(default=False)
+    email_user: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    email_password: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    email_sender: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=now_shanghai
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=now_shanghai, onupdate=now_shanghai
+    )
+
+
+class EmailConfig(Base):
+    """
+    邮件配置（兼容旧配置）。
+    """
+
+    __tablename__ = "email_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    host: Mapped[str] = mapped_column(String(255), nullable=False)
+    port: Mapped[int] = mapped_column(Integer, nullable=False, default=587)
+    username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    password: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    sender: Mapped[str] = mapped_column(String(255), nullable=False)
+    use_tls: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=now_shanghai
     )

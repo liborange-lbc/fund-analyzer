@@ -76,3 +76,13 @@ ALPHA_VANTAGE_SYMBOL_MAP = {
     "DJIA": "DIA",
 }
 
+
+# 邮件通知配置（用于实盘策略）
+EMAIL_HOST = os.getenv("EMAIL_HOST", "").strip()
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USER = os.getenv("EMAIL_USER", "").strip()
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "").strip()
+EMAIL_FROM = os.getenv("EMAIL_FROM", EMAIL_USER).strip()
+EMAIL_TO = [x.strip() for x in os.getenv("EMAIL_TO", "").split(",") if x.strip()]
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() in ("1", "true", "yes")
+

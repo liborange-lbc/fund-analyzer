@@ -5,6 +5,20 @@
     <title>基础数据 - 基金指数分析系统</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .card-shelf {
+        scroll-behavior: smooth;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      .card-shelf::-webkit-scrollbar {
+        display: none;
+      }
+      .index-card {
+        scroll-snap-align: start;
+      }
+    </style>
     <!-- ECharts CDN -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
     <!-- Flatpickr 日期选择 -->
@@ -41,10 +55,22 @@
               数据管理
             </a>
             <a
-              href="/static/notify.html"
+              href="/static/live.html"
               class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
             >
-              公众号通知
+              实盘策略
+            </a>
+            <a
+              href="/static/contacts.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              联系人管理
+            </a>
+            <a
+              href="/static/monitor.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              监控看板
             </a>
           </nav>
         </div>
@@ -77,7 +103,7 @@
         
         <!-- Add index form -->
         <form id="form-add-index" class="space-y-3">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div class="space-y-1">
               <label
                 for="input-code"
@@ -120,6 +146,24 @@
                 class="w-full rounded-md border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
               />
             </div>
+            <div class="space-y-1">
+              <label
+                for="input-source"
+                class="block text-xs font-medium text-slate-300"
+                >数据来源（可选）</label
+              >
+              <select
+                id="input-source"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">全部数据源</option>
+                <option value="csindex">中证</option>
+                <option value="fred">FRED</option>
+                <option value="alphavantage">Alpha Vantage</option>
+                <option value="yahoo_chart">Yahoo Chart</option>
+                <option value="yfinance">yfinance</option>
+              </select>
+            </div>
           </div>
           <button
             type="submit"
@@ -160,7 +204,7 @@
           </div>
           <div
             id="indices-list"
-            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+            class="card-shelf flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory"
           >
             <!-- filled by JS -->
           </div>
@@ -334,6 +378,7 @@
       const logsBodyEl = document.getElementById("logs-body");
       const indicesListEl = document.getElementById("indices-list");
       const btnRefreshIndices = document.getElementById("btn-refresh-indices");
+      const inputSourceEl = document.getElementById("input-source");
       const btnRecalcMa = document.getElementById("btn-recalc-ma");
       const btnRecalcMaDiff = document.getElementById("btn-recalc-ma-diff");
       const formAddIndex = document.getElementById("form-add-index");
@@ -353,6 +398,14 @@
       let logOffset = 0;
       let logTotal = 0;
       let allIndicesStatus = [];
+      const SOURCE_OPTIONS = [
+        { value: "", label: "全部数据源" },
+        { value: "csindex", label: "中证" },
+        { value: "fred", label: "FRED" },
+        { value: "alphavantage", label: "Alpha Vantage" },
+        { value: "yahoo_chart", label: "Yahoo Chart" },
+        { value: "yfinance", label: "yfinance" },
+      ];
       let currentSelectedIndexId = null;
       let currentYear = new Date().getFullYear();
       let calendarChart = null;
@@ -843,7 +896,7 @@
         indices.forEach((idx) => {
           const card = document.createElement("div");
           card.className =
-            "rounded-lg border border-slate-800 bg-slate-950/60 p-3 hover:border-slate-700 transition-colors cursor-pointer";
+            "index-card min-w-[260px] max-w-[320px] shrink-0 rounded-xl border border-slate-800/80 bg-gradient-to-b from-slate-950/70 to-slate-900/80 p-3 shadow-sm shadow-slate-950/40 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-slate-600/90 hover:shadow-md hover:shadow-slate-950/60 cursor-pointer";
           card.addEventListener("click", () => {
             // 点击卡片时自动在日历图展示
             selectIndexCalendar.value = idx.id;
@@ -866,7 +919,44 @@
           // 卡片副标题
           const sub = document.createElement("div");
           sub.className = "text-xs text-slate-400 mb-3";
-          sub.textContent = `代码：${idx.code}${idx.start_date ? ` · 开始日期：${idx.start_date}` : ''}`;
+          const sourceLabel = SOURCE_OPTIONS.find(s => s.value === (idx.source || ""))?.label || "全部数据源";
+          sub.textContent = `代码：${idx.code}${idx.start_date ? ` · 开始日期：${idx.start_date}` : ''} · 数据源：${sourceLabel}`;
+
+          const sourceRow = document.createElement("div");
+          sourceRow.className = "text-xs text-slate-300 mb-3 flex items-center gap-2";
+          const sourceLabelEl = document.createElement("span");
+          sourceLabelEl.className = "text-slate-500";
+          sourceLabelEl.textContent = "数据来源";
+          const sourceSelect = document.createElement("select");
+          sourceSelect.className =
+            "rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500";
+          SOURCE_OPTIONS.forEach((opt) => {
+            const o = document.createElement("option");
+            o.value = opt.value;
+            o.textContent = opt.label;
+            if ((idx.source || "") === opt.value) o.selected = true;
+            if (!idx.source && opt.value === "") o.selected = true;
+            sourceSelect.appendChild(o);
+          });
+          sourceSelect.addEventListener("click", (e) => e.stopPropagation());
+          sourceSelect.addEventListener("change", async (e) => {
+            e.stopPropagation();
+            const value = e.target.value;
+            try {
+              await apiFetch(`/indices/${idx.id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ source: value || null }),
+              });
+              idx.source = value || null;
+              const label = SOURCE_OPTIONS.find(s => s.value === (idx.source || ""))?.label || "全部数据源";
+              sub.textContent = `代码：${idx.code}${idx.start_date ? ` · 开始日期：${idx.start_date}` : ''} · 数据源：${label}`;
+              showToast("数据来源已更新", "success");
+            } catch (err) {
+              showToast(err.message || "更新失败", "error");
+            }
+          });
+          sourceRow.appendChild(sourceLabelEl);
+          sourceRow.appendChild(sourceSelect);
 
           // 操作按钮区域
           const actions = document.createElement("div");
@@ -946,6 +1036,7 @@
             }
           });
 
+          card.appendChild(sourceRow);
           actions.appendChild(btnMa);
           actions.appendChild(btnMaDiff);
           actions.appendChild(btnExport);
@@ -993,6 +1084,7 @@
         const code = document.getElementById("input-code").value.trim();
         const name = document.getElementById("input-name").value.trim();
         const startDate = document.getElementById("input-start-date").value;
+        const source = inputSourceEl ? inputSourceEl.value : "";
         
         if (!code) {
           showToast("指数代码不能为空", "info");
@@ -1011,6 +1103,9 @@
           if (startDate) {
             payload.start_date = startDate;
           }
+          if (source) {
+            payload.source = source;
+          }
           await apiFetch("/indices", {
             method: "POST",
             body: JSON.stringify(payload),
@@ -1018,6 +1113,7 @@
           showToast("添加成功", "success");
           e.target.reset();
           if (window.fpSyncStartDate) window.fpSyncStartDate.clear();
+          if (inputSourceEl) inputSourceEl.value = "";
           await loadIndices();
         } catch (err) {
           showToast(err.message || "添加失败", "error");

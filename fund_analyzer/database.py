@@ -84,6 +84,10 @@ def init_db():
                 conn.execute(
                     text("ALTER TABLE indices ADD COLUMN start_date DATE")
                 )
+            if "source" not in col_names3:
+                conn.execute(
+                    text("ALTER TABLE indices ADD COLUMN source VARCHAR(50)")
+                )
             # 注意：SQLite 不支持直接修改列的非空约束，需要重建表
             # 这里先检查，如果 name 可以为空，会在应用层校验
 
@@ -193,6 +197,68 @@ def init_db():
                 conn.execute(text("ALTER TABLE index_prices ADD COLUMN ma180_diff FLOAT"))
             if "ma360_diff" not in col_names5:
                 conn.execute(text("ALTER TABLE index_prices ADD COLUMN ma360_diff FLOAT"))
+            conn.commit()
+
+            # 7) live_strategies 增加 email_subscribers
+            cols6 = conn.execute(text("PRAGMA table_info('live_strategies')")).fetchall()
+            if cols6:
+                col_names6 = {row[1] for row in cols6}
+                if "email_subscribers" not in col_names6:
+                    conn.execute(
+                        text("ALTER TABLE live_strategies ADD COLUMN email_subscribers TEXT")
+                    )
+                    conn.commit()
+
+            # 8) contacts 表
+            conn.execute(
+                text("""
+                    CREATE TABLE IF NOT EXISTS contacts (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        nickname VARCHAR(64) NOT NULL,
+                        email VARCHAR(255) NOT NULL,
+                        created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                        updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                    )
+                """)
+            )
+            conn.execute(
+                text("CREATE UNIQUE INDEX IF NOT EXISTS uq_contact_email ON contacts (email)")
+            )
+            cols_contacts = conn.execute(text("PRAGMA table_info('contacts')")).fetchall()
+            if cols_contacts:
+                col_names_contacts = {row[1] for row in cols_contacts}
+                if "phone" not in col_names_contacts:
+                    conn.execute(text("ALTER TABLE contacts ADD COLUMN phone VARCHAR(32)"))
+                if "email_provider" not in col_names_contacts:
+                    conn.execute(text("ALTER TABLE contacts ADD COLUMN email_provider VARCHAR(32)"))
+                if "email_user" not in col_names_contacts:
+                    conn.execute(text("ALTER TABLE contacts ADD COLUMN email_user VARCHAR(255)"))
+                if "email_password" not in col_names_contacts:
+                    conn.execute(text("ALTER TABLE contacts ADD COLUMN email_password VARCHAR(255)"))
+                if "email_sender" not in col_names_contacts:
+                    conn.execute(text("ALTER TABLE contacts ADD COLUMN email_sender VARCHAR(255)"))
+                if "email_port" not in col_names_contacts:
+                    conn.execute(text("ALTER TABLE contacts ADD COLUMN email_port INTEGER"))
+                if "email_use_ssl" not in col_names_contacts:
+                    conn.execute(text("ALTER TABLE contacts ADD COLUMN email_use_ssl BOOLEAN DEFAULT 0"))
+                conn.commit()
+
+            # 9) email_configs 表
+            conn.execute(
+                text("""
+                    CREATE TABLE IF NOT EXISTS email_configs (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        host VARCHAR(255) NOT NULL,
+                        port INTEGER NOT NULL DEFAULT 587,
+                        username VARCHAR(255),
+                        password VARCHAR(255),
+                        sender VARCHAR(255) NOT NULL,
+                        use_tls BOOLEAN DEFAULT 1,
+                        created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                        updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                    )
+                """)
+            )
             conn.commit()
 
 

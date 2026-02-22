@@ -39,10 +39,22 @@
               数据管理
             </a>
             <a
-              href="/static/notify.html"
+              href="/static/live.html"
               class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
             >
-              公众号通知
+              实盘策略
+            </a>
+            <a
+              href="/static/contacts.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              联系人管理
+            </a>
+            <a
+              href="/static/monitor.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              监控看板
             </a>
           </nav>
         </div>
@@ -91,6 +103,23 @@
               </div>
               <div class="flex items-center gap-2 text-xs text-slate-400">
                 <span>每页 50 条</span>
+                <input
+                  id="table-filter-input"
+                  class="hidden w-40 rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100"
+                  placeholder="当前页搜索"
+                />
+                <button
+                  id="btn-clear-filter"
+                  class="hidden px-2 py-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-100"
+                >
+                  清除
+                </button>
+                <button
+                  id="btn-add-contact-row"
+                  class="hidden px-2 py-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-100"
+                >
+                  新增联系人
+                </button>
               </div>
             </div>
 
@@ -247,6 +276,9 @@
       const btnNextPage = document.getElementById("btn-next-page");
       const currentTableTitleEl = document.getElementById("current-table-title");
       const currentTableMetaEl = document.getElementById("current-table-meta");
+      const btnAddContactRow = document.getElementById("btn-add-contact-row");
+      const tableFilterInput = document.getElementById("table-filter-input");
+      const btnClearFilter = document.getElementById("btn-clear-filter");
 
       const logsBodyEl = document.getElementById("logs-body");
       const logsPagerInfoEl = document.getElementById("logs-pager-info");
@@ -262,6 +294,8 @@
       let currentPrimaryKey = null;
       let editingRowId = null;
       let editingRowData = null;
+      let lastTableData = null;
+      let tableFilter = "";
 
       let logOffset = 0;
       let logTotal = 0;
@@ -275,8 +309,12 @@
         }
         tables.forEach((t) => {
           const btn = document.createElement("button");
+          const isActive = currentTable === t.name;
           btn.className =
-            "w-full flex items-center justify-between rounded-md px-3 py-2 text-left hover:bg-slate-800/80 border border-transparent hover:border-slate-700";
+            "w-full flex items-center justify-between rounded-md px-3 py-2 text-left border " +
+            (isActive
+              ? "bg-slate-800/80 border-slate-700 text-slate-100"
+              : "border-transparent hover:border-slate-700 hover:bg-slate-800/80");
           btn.innerHTML = `
             <div class="flex flex-col">
               <span class="text-xs font-medium text-slate-100">${t.name}</span>
@@ -289,25 +327,39 @@
             currentPrimaryKey = null; // 切换表时重置主键
             editingRowId = null; // 切换表时取消编辑
             editingRowData = null;
+          tableFilter = "";
+          tableFilterInput.value = "";
             loadTableRows();
+            renderTablesList(tables);
           });
           tablesListEl.appendChild(btn);
         });
       }
 
       function renderTableRows(data) {
+        lastTableData = data;
         currentTotal = data.total;
         const cols = data.columns || [];
         const rows = data.rows || [];
+        const filterText = (tableFilter || "").trim().toLowerCase();
+        const filteredRows = filterText
+          ? rows.filter((row) =>
+              cols.some((c) => {
+                const val = row[c];
+                return val !== null && val !== undefined && String(val).toLowerCase().includes(filterText);
+              })
+            )
+          : rows;
 
         if (!currentTable) {
           currentTableTitleEl.textContent = "请选择左侧一张表";
           currentTableMetaEl.textContent = "";
         } else {
           currentTableTitleEl.textContent = `表：${currentTable}`;
+          const filterMeta = filterText ? `，过滤后 ${filteredRows.length} 行` : "";
           currentTableMetaEl.textContent = `共 ${currentTotal} 行，当前第 ${
             Math.floor(currentOffset / PAGE_SIZE) + 1
-          } 页`;
+          } 页${filterMeta}`;
         }
 
         tableHeadEl.innerHTML = "";
@@ -329,10 +381,14 @@
           th.textContent = c;
           trHead.appendChild(th);
         });
-        // 只有 indices 表才添加操作列
+        // indices / contacts 表添加操作列
         const tableNameLower = (currentTable || "").toLowerCase();
         const isIndicesTable = tableNameLower === "indices";
-        if (isIndicesTable) {
+        const isContactsTable = tableNameLower === "contacts";
+        btnAddContactRow.classList.toggle("hidden", !isContactsTable);
+        tableFilterInput.classList.toggle("hidden", !currentTable);
+        btnClearFilter.classList.toggle("hidden", !currentTable);
+        if (isIndicesTable || isContactsTable) {
           const thAction = document.createElement("th");
           thAction.className = "px-3 py-2 font-medium whitespace-nowrap";
           thAction.textContent = "操作";
@@ -340,7 +396,16 @@
         }
         tableHeadEl.appendChild(trHead);
 
-        rows.forEach((row) => {
+        if (filteredRows.length === 0) {
+          tableBodyEl.innerHTML =
+            '<tr><td class="px-3 py-3 text-center text-xs text-slate-400">当前页无匹配数据。</td></tr>';
+          pagerInfoEl.textContent = "";
+          btnPrevPage.disabled = currentOffset <= 0;
+          btnNextPage.disabled = currentOffset + PAGE_SIZE >= currentTotal;
+          return;
+        }
+
+        filteredRows.forEach((row) => {
           const tr = document.createElement("tr");
           tr.className = "hover:bg-slate-800/40";
           const rowId = currentPrimaryKey ? row[currentPrimaryKey] : null;
@@ -353,17 +418,64 @@
             
             const tableNameLower = (currentTable || "").toLowerCase();
             const isIndicesTable = tableNameLower === "indices";
-            // 只有 indices 表的 start_date 字段可以编辑
-            const canEdit = isIndicesTable && isEditing && c !== currentPrimaryKey && c === "start_date";
+            const isContactsTable = tableNameLower === "contacts";
+            const contactEditable = [
+              "nickname",
+              "email",
+              "phone",
+              "email_provider",
+              "email_port",
+              "email_use_ssl",
+              "email_user",
+              "email_password",
+              "email_sender",
+            ];
+            const canEdit =
+              (isIndicesTable &&
+                isEditing &&
+                c !== currentPrimaryKey &&
+                (c === "start_date" || c === "source")) ||
+              (isContactsTable &&
+                isEditing &&
+                c !== currentPrimaryKey &&
+                c !== "created_at" &&
+                c !== "updated_at" &&
+                contactEditable.includes(c));
             
             if (canEdit) {
               // 编辑模式：显示输入框
-              const input = document.createElement("input");
+              let input;
+              if (isContactsTable && c === "email_use_ssl") {
+                input = document.createElement("input");
+                input.type = "checkbox";
+                input.checked = Boolean(val);
+                input.className = "rounded border-slate-600 bg-slate-800 text-indigo-600";
+              } else if (isContactsTable && c === "email_provider") {
+                const select = document.createElement("select");
+                select.className = "w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100";
+                select.innerHTML = `
+                  <option value="">—</option>
+                  <option value="163">163</option>
+                  <option value="qq">QQ</option>
+                  <option value="gmail">Gmail</option>
+                `;
+                select.value = val || "";
+                select.dataset.column = c;
+                td.appendChild(select);
+                tr.appendChild(td);
+                return;
+              } else {
+                input = document.createElement("input");
+              }
               if (c === "start_date") {
                 input.type = "text";
                 input.readOnly = true;
                 input.placeholder = "选择日期";
                 input.className = "w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100 cursor-pointer db-date-input";
+              } else if (isContactsTable && c === "email_password") {
+                input.type = "password";
+                input.className = "w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100";
+                input.value = "";
               } else {
                 input.type = typeof val === "number" ? "number" : "text";
                 input.className = "w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100";
@@ -371,15 +483,17 @@
               if (c === "start_date" && val) {
                 const dateVal = typeof val === "string" ? val : String(val);
                 input.value = dateVal.split(" ")[0];
-              } else if (c !== "start_date") {
+              } else if (c !== "start_date" && !(isContactsTable && c === "email_password")) {
                 input.value = val === null || val === undefined ? "" : String(val);
               }
               input.dataset.column = c;
               td.appendChild(input);
             } else {
               // 显示模式：显示文本
-              if (isEditing && isIndicesTable && c !== currentPrimaryKey && c !== "start_date") {
-                // indices 表编辑模式下，非 start_date 字段显示为只读样式
+              if (isContactsTable && c === "email_password") {
+                td.textContent = val ? "******" : "";
+              } else if (isEditing && isIndicesTable && c !== currentPrimaryKey && c !== "start_date" && c !== "source") {
+                // indices 表编辑模式下，非 start_date/source 字段显示为只读样式
                 td.className += " text-slate-500";
                 td.textContent =
                   val === null || val === undefined
@@ -399,10 +513,11 @@
             tr.appendChild(td);
           });
 
-          // 只有 indices 表才显示操作列
+          // indices / contacts 表显示操作列
           const tableNameLower = (currentTable || "").toLowerCase();
           const isIndicesTable = tableNameLower === "indices";
-          if (isIndicesTable) {
+          const isContactsTable = tableNameLower === "contacts";
+          if (isIndicesTable || isContactsTable) {
             const tdAction = document.createElement("td");
             tdAction.className = "px-3 py-1.5 whitespace-nowrap";
             
@@ -423,12 +538,19 @@
             } else {
               // 显示模式：显示编辑按钮
               if (currentPrimaryKey && rowId !== null && rowId !== undefined) {
-                // 有主键：显示编辑按钮（indices 表只允许编辑 start_date）
+                // 有主键：显示编辑按钮
                 const btnEdit = document.createElement("button");
                 btnEdit.className = "px-2 py-1 text-xs rounded bg-indigo-600 hover:bg-indigo-500 text-white";
                 btnEdit.textContent = "编辑";
                 btnEdit.addEventListener("click", () => startEdit(rowId, row, tr));
                 tdAction.appendChild(btnEdit);
+                if (isContactsTable) {
+                  const btnDel = document.createElement("button");
+                  btnDel.className = "ml-1 px-2 py-1 text-xs rounded bg-rose-600 hover:bg-rose-500 text-white";
+                  btnDel.textContent = "删除";
+                  btnDel.addEventListener("click", () => deleteContactRow(rowId));
+                  tdAction.appendChild(btnDel);
+                }
               } else {
                 // 没有主键或主键值为空：显示提示
                 tdAction.innerHTML = '<span class="text-xs text-slate-400">-</span>';
@@ -521,6 +643,41 @@
         loadTableRows(); // 重新渲染以退出编辑模式
       }
 
+      async function addContactRow() {
+        if ((currentTable || "").toLowerCase() !== "contacts") {
+          return;
+        }
+        const nickname = prompt("联系人昵称（必填）");
+        if (!nickname) return;
+        const email = prompt("邮箱（必填）");
+        if (!email) return;
+        const phone = prompt("手机号（可选）") || "";
+        try {
+          await apiFetch("/contacts", {
+            method: "POST",
+            body: JSON.stringify({ nickname, email, phone }),
+          });
+          showToast("新增成功", "success");
+          loadTableRows();
+          loadLogs();
+        } catch (e) {
+          showToast(e.message || "新增失败", "error");
+        }
+      }
+
+      async function deleteContactRow(rowId) {
+        if (!rowId) return;
+        if (!confirm("确定删除该联系人？")) return;
+        try {
+          await apiFetch(`/contacts/${rowId}`, { method: "DELETE" });
+          showToast("已删除", "success");
+          loadTableRows();
+          loadLogs();
+        } catch (e) {
+          showToast(e.message || "删除失败", "error");
+        }
+      }
+
       async function saveRow(rowId, trElement) {
         if (!currentTable || !currentPrimaryKey) {
           showToast("无法保存：缺少主键信息", "error");
@@ -528,12 +685,17 @@
         }
 
         // 收集编辑后的数据
-        const inputs = trElement.querySelectorAll("input[data-column]");
+        const inputs = trElement.querySelectorAll("input[data-column], select[data-column]");
         const updates = {};
         
         inputs.forEach((input) => {
           const col = input.dataset.column;
-          let val = input.value.trim();
+          let val = "";
+          if (input.type === "checkbox") {
+            val = input.checked ? "true" : "false";
+          } else {
+            val = (input.value || "").trim();
+          }
           
           // 跳过主键列
           if (col === currentPrimaryKey) return;
@@ -549,6 +711,9 @@
           } else {
             // 处理空值和类型转换
             if (val === "") {
+              if (col === "email_password") {
+                return;
+              }
               updates[col] = null;
             } else {
               // 尝试转换为数字（如果原值是数字类型）
@@ -560,6 +725,8 @@
                 } else {
                   updates[col] = val;
                 }
+              } else if (typeof originalVal === "boolean") {
+                updates[col] = val === "true";
               } else {
                 updates[col] = val;
               }
@@ -594,6 +761,20 @@
       }
 
       document.getElementById("btn-refresh-tables").addEventListener("click", loadTables);
+      btnAddContactRow.addEventListener("click", addContactRow);
+      tableFilterInput.addEventListener("input", (e) => {
+        tableFilter = e.target.value || "";
+        if (lastTableData) {
+          renderTableRows(lastTableData);
+        }
+      });
+      btnClearFilter.addEventListener("click", () => {
+        tableFilter = "";
+        tableFilterInput.value = "";
+        if (lastTableData) {
+          renderTableRows(lastTableData);
+        }
+      });
 
       btnPrevPage.addEventListener("click", () => {
         if (currentOffset <= 0) return;

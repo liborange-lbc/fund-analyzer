@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.db-shm
+*.db-wal
+.git/
+.venv/
+.cursor/
+node_modules/
+dist/
+build/
+*.log

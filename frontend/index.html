@@ -37,10 +37,22 @@
               数据管理
             </a>
             <a
-              href="/static/notify.html"
+              href="/static/live.html"
               class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
             >
-              公众号通知
+              实盘策略
+            </a>
+            <a
+              href="/static/contacts.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              联系人管理
+            </a>
+            <a
+              href="/static/monitor.html"
+              class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80"
+            >
+              监控看板
             </a>
           </nav>
         </div>
@@ -72,6 +84,12 @@
               class="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-800"
             >
               均值偏差趋势分析
+            </button>
+            <button
+              id="tab-backtest"
+              class="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-800"
+            >
+              策略回测
             </button>
           </div>
 
@@ -132,6 +150,77 @@
               class="w-full"
               style="height: 500px;"
             ></div>
+            <div class="mt-4 bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+              <div>
+                <h3 class="text-sm font-semibold text-slate-100">风险画像</h3>
+                <p class="text-xs text-slate-400 mt-0.5">基于收盘价日收益率计算。</p>
+              </div>
+              <div class="overflow-x-auto border border-slate-800/80 rounded-md">
+                <table class="min-w-full text-xs text-left text-slate-200">
+                  <thead class="bg-slate-900/95 border-b border-slate-800">
+                    <tr>
+                      <th class="px-3 py-2 font-medium whitespace-nowrap">指数</th>
+                      <th class="px-3 py-2 font-medium whitespace-nowrap">
+                        年化收益
+                        <span class="relative ml-1 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-slate-600 text-[9px] text-slate-300 cursor-help group">
+                          ?
+                          <span class="pointer-events-none absolute left-1/2 -translate-x-1/2 top-5 z-20 w-56 rounded bg-slate-900 text-slate-100 text-[11px] p-2 border border-slate-700 opacity-0 group-hover:opacity-100 transition">
+                            基于首末收盘价计算的年化复合收益率（按 252 交易日折算）。
+                          </span>
+                        </span>
+                      </th>
+                      <th class="px-3 py-2 font-medium whitespace-nowrap">
+                        年化波动率
+                        <span class="relative ml-1 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-slate-600 text-[9px] text-slate-300 cursor-help group">
+                          ?
+                          <span class="pointer-events-none absolute left-1/2 -translate-x-1/2 top-5 z-20 w-56 rounded bg-slate-900 text-slate-100 text-[11px] p-2 border border-slate-700 opacity-0 group-hover:opacity-100 transition">
+                            日收益率标准差 × √252，衡量收益波动大小。
+                          </span>
+                        </span>
+                      </th>
+                      <th class="px-3 py-2 font-medium whitespace-nowrap">
+                        最大回撤
+                        <span class="relative ml-1 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-slate-600 text-[9px] text-slate-300 cursor-help group">
+                          ?
+                          <span class="pointer-events-none absolute left-1/2 -translate-x-1/2 top-5 z-20 w-56 rounded bg-slate-900 text-slate-100 text-[11px] p-2 border border-slate-700 opacity-0 group-hover:opacity-100 transition">
+                            历史高点到后续低点的最大跌幅。
+                          </span>
+                        </span>
+                      </th>
+                      <th class="px-3 py-2 font-medium whitespace-nowrap">
+                        夏普
+                        <span class="relative ml-1 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-slate-600 text-[9px] text-slate-300 cursor-help group">
+                          ?
+                          <span class="pointer-events-none absolute left-1/2 -translate-x-1/2 top-5 z-20 w-56 rounded bg-slate-900 text-slate-100 text-[11px] p-2 border border-slate-700 opacity-0 group-hover:opacity-100 transition">
+                            平均日收益 ÷ 日收益波动 × √252（未扣无风险利率）。
+                          </span>
+                        </span>
+                      </th>
+                      <th class="px-3 py-2 font-medium whitespace-nowrap">
+                        索提诺
+                        <span class="relative ml-1 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-slate-600 text-[9px] text-slate-300 cursor-help group">
+                          ?
+                          <span class="pointer-events-none absolute left-1/2 -translate-x-1/2 top-5 z-20 w-56 rounded bg-slate-900 text-slate-100 text-[11px] p-2 border border-slate-700 opacity-0 group-hover:opacity-100 transition">
+                            平均日收益 ÷ 下行波动 × √252，关注下行风险。
+                          </span>
+                        </span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody id="risk-profile-body" class="divide-y divide-slate-800/80">
+                    <tr>
+                      <td colspan="6" class="px-3 py-4 text-center text-slate-400">暂无数据</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="overflow-x-auto border border-slate-800/80 rounded-md">
+                <table class="min-w-full text-xs text-left text-slate-200" id="risk-corr-table">
+                  <thead class="bg-slate-900/95 border-b border-slate-800"></thead>
+                  <tbody class="divide-y divide-slate-800/80"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <!-- 均值偏差趋势分析内容 -->
@@ -164,6 +253,13 @@
                 <option value="180">MA180</option>
                 <option value="360">MA360</option>
               </select>
+              <span class="text-xs font-medium text-slate-300 ml-2">时间快捷：</span>
+              <div class="flex items-center gap-1">
+                <button type="button" data-ma-diff-range="0" class="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-900/80">所有时间</button>
+                <button type="button" data-ma-diff-range="1" class="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-900/80">最近一年</button>
+                <button type="button" data-ma-diff-range="3" class="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-900/80">最近三年</button>
+                <button type="button" data-ma-diff-range="5" class="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-900/80">最近五年</button>
+              </div>
             </div>
             
             <!-- 负偏差 | 风险分析 | 偏差区间：从左至右 1/5、1/5、3/5 -->
@@ -196,13 +292,332 @@
               </div>
             </div>
             
-            <div
-              id="ma-diff-chart"
-              class="w-full"
-              style="height: 500px;"
-            ></div>
+          <div
+            id="ma-diff-chart"
+            class="w-full"
+            style="height: 500px;"
+          ></div>
+        </div>
+
+        <!-- 策略回测内容 -->
+        <div id="content-backtest" class="analysis-content hidden">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h2 class="text-sm font-semibold text-slate-100">策略回测</h2>
+              <p class="text-xs text-slate-400 mt-0.5">
+                支持定投、均值回归、趋势跟随的基础回测。
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                id="btn-add-live"
+                class="rounded-md border border-slate-700 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-slate-800"
+              >
+                添加到实盘策略
+              </button>
+              <button
+                id="btn-run-backtest"
+                class="rounded-md bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-500"
+              >
+                运行回测
+              </button>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">选择指数</label>
+              <select
+                id="select-index-backtest"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">请选择指数...</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">开始日期</label>
+              <input
+                id="input-backtest-start"
+                type="text"
+                placeholder="yyyyMMdd"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">结束日期</label>
+              <input
+                id="input-backtest-end"
+                type="text"
+                placeholder="yyyyMMdd"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div class="md:col-span-3">
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="text-slate-400">时间快捷</span>
+                <button type="button" data-backtest-range="1" class="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-900/80">近一年</button>
+                <button type="button" data-backtest-range="3" class="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-900/80">近三年</button>
+                <button type="button" data-backtest-range="5" class="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-900/80">近五年</button>
+                <button type="button" data-backtest-range="0" class="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-900/80">所有时间</button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">初始资金</label>
+              <input
+                id="input-backtest-cash"
+                type="number"
+                min="1"
+                step="1"
+                value="100000"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1">
+                策略类型
+                <span class="relative inline-flex items-center justify-center w-4 h-4 rounded-full border border-slate-600 text-[10px] text-slate-300 cursor-help group">
+                  ?
+                  <span class="pointer-events-none absolute left-1/2 -translate-x-1/2 top-6 z-20 w-72 rounded bg-slate-900 text-slate-100 text-xs p-2 border border-slate-700 opacity-0 group-hover:opacity-100 transition">
+                    <div>定投：固定频率投入固定金额</div>
+                    <div>智能定投：回撤越大投入越高</div>
+                    <div>均值回归：价格低于/高于均线阈值买卖</div>
+                    <div>多轮均值回归：按均线步长分批买卖</div>
+                    <div>均值差策略：均值差低于阈值买入，高于阈值卖出</div>
+                    <div>趋势跟随：价格上穿均线买入、下穿卖出</div>
+                  </span>
+                </span>
+              </label>
+              <select
+                id="select-backtest-strategy"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="dca">定投</option>
+                <option value="smart_dca">智能定投</option>
+                <option value="mean_reversion">均值回归</option>
+                <option value="mean_reversion_multi">多轮均值回归</option>
+                <option value="ma_diff">均值差策略</option>
+                <option value="trend_following">趋势跟随</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2 pt-6">
+              <input
+                id="chk-backtest-price"
+                type="checkbox"
+                class="rounded border-slate-600 bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label for="chk-backtest-price" class="text-xs text-slate-300">显示收盘价走势</label>
+            </div>
+          </div>
+          <div id="backtest-params-dca" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">定投金额</label>
+              <input
+                id="input-dca-amount"
+                type="number"
+                min="1"
+                step="1"
+                value="1000"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">定投频率</label>
+              <select
+                id="select-dca-frequency"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="daily">每日</option>
+                <option value="weekly">每周</option>
+                <option value="monthly">每月</option>
+              </select>
+            </div>
+          </div>
+          <div id="backtest-params-smart-dca" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 hidden">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">基础投入</label>
+              <input
+                id="input-smart-base"
+                type="number"
+                min="1"
+                step="1"
+                value="1000"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">投入频率</label>
+              <select
+                id="select-smart-frequency"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="daily">每日</option>
+                <option value="weekly">每周</option>
+                <option value="monthly">每月</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">跌幅步长(%)</label>
+              <input
+                id="input-smart-step"
+                type="number"
+                min="0.5"
+                step="0.5"
+                value="3"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">最大倍数</label>
+              <input
+                id="input-smart-max-multiple"
+                type="number"
+                min="1"
+                step="0.5"
+                value="3"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <div id="backtest-params-mean" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 hidden">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">均线周期</label>
+              <select
+                id="select-mean-ma"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="30">MA30</option>
+                <option value="60">MA60</option>
+                <option value="90">MA90</option>
+                <option value="120">MA120</option>
+                <option value="150">MA150</option>
+                <option value="180">MA180</option>
+                <option value="360">MA360</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">买入阈值(%)</label>
+              <input
+                id="input-mean-buy"
+                type="number"
+                min="0"
+                step="0.1"
+                value="3"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">卖出阈值(%)</label>
+              <input
+                id="input-mean-sell"
+                type="number"
+                min="0"
+                step="0.1"
+                value="3"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <div id="backtest-params-mean-multi" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 hidden">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">均线周期</label>
+              <select
+                id="select-multi-ma"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="30">MA30</option>
+                <option value="60">MA60</option>
+                <option value="90">MA90</option>
+                <option value="120">MA120</option>
+                <option value="150">MA150</option>
+                <option value="180">MA180</option>
+                <option value="360">MA360</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">涨跌步长(%)</label>
+              <input
+                id="input-multi-step"
+                type="number"
+                min="0.1"
+                step="0.1"
+                value="3"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">每次买卖金额</label>
+              <input
+                id="input-multi-amount"
+                type="number"
+                min="1"
+                step="1"
+                value="1000"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <div id="backtest-params-ma-diff" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 hidden">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">均线周期</label>
+              <select
+                id="select-diff-ma"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="30">MA30</option>
+                <option value="60" selected>MA60</option>
+                <option value="90">MA90</option>
+                <option value="120">MA120</option>
+                <option value="150">MA150</option>
+                <option value="180">MA180</option>
+                <option value="360">MA360</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">买入阈值(点)</label>
+              <input
+                id="input-diff-buy"
+                type="number"
+                step="1"
+                value="-100"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">卖出阈值(点)</label>
+              <input
+                id="input-diff-sell"
+                type="number"
+                step="1"
+                value="100"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <div id="backtest-params-trend" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 hidden">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">趋势均线周期</label>
+              <select
+                id="select-trend-ma"
+                class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="30">MA30</option>
+                <option value="60">MA60</option>
+                <option value="90">MA90</option>
+                <option value="120">MA120</option>
+                <option value="150">MA150</option>
+                <option value="180">MA180</option>
+                <option value="360">MA360</option>
+              </select>
+            </div>
+          </div>
+          <div id="backtest-summary" class="text-xs text-slate-300 mb-2"></div>
+          <div id="backtest-compare" class="text-xs text-slate-300 mb-2"></div>
+          <div id="backtest-chart" class="w-full rounded border border-slate-800/80" style="height: 320px;"></div>
+          <div class="mt-3">
+            <div class="text-xs text-slate-400 mb-1">交易记录（最近 20 条）</div>
+            <div id="backtest-trades" class="text-xs text-slate-200 space-y-1"></div>
           </div>
         </div>
+      </div>
       </main>
 
       <!-- Toast area -->
@@ -256,6 +671,8 @@
       const selectIndexEl = document.getElementById("select-index");
       const selectedIndicesEl = document.getElementById("selected-indices");
       const chartMetaEl = document.getElementById("chart-meta");
+      const riskProfileBodyEl = document.getElementById("risk-profile-body");
+      const riskCorrTableEl = document.getElementById("risk-corr-table");
       const selectIndexMaDiffEl = document.getElementById("select-index-ma-diff");
       const selectMaPeriodEl = document.getElementById("select-ma-period");
       const maDiffChartMetaEl = document.getElementById("ma-diff-chart-meta");
@@ -273,13 +690,53 @@
       const maDiffIntervalStatsEl = document.getElementById("ma-diff-interval-stats");
       const inputMaDiffIntervalSizeEl = document.getElementById("input-ma-diff-interval-size");
       const maDiffPercentileTextEl = document.getElementById("ma-diff-percentile-text");
+      const maDiffRangeButtons = document.querySelectorAll("[data-ma-diff-range]");
+      const selectIndexBacktestEl = document.getElementById("select-index-backtest");
+      const inputBacktestStartEl = document.getElementById("input-backtest-start");
+      const inputBacktestEndEl = document.getElementById("input-backtest-end");
+      const inputBacktestCashEl = document.getElementById("input-backtest-cash");
+      const backtestStrategyEl = document.getElementById("select-backtest-strategy");
+      const backtestRangeButtons = document.querySelectorAll("[data-backtest-range]");
+      const backtestParamsDcaEl = document.getElementById("backtest-params-dca");
+      const backtestParamsSmartDcaEl = document.getElementById("backtest-params-smart-dca");
+      const backtestParamsMeanEl = document.getElementById("backtest-params-mean");
+      const backtestParamsMeanMultiEl = document.getElementById("backtest-params-mean-multi");
+      const backtestParamsMaDiffEl = document.getElementById("backtest-params-ma-diff");
+      const backtestParamsTrendEl = document.getElementById("backtest-params-trend");
+      const inputDcaAmountEl = document.getElementById("input-dca-amount");
+      const selectDcaFrequencyEl = document.getElementById("select-dca-frequency");
+      const inputSmartBaseEl = document.getElementById("input-smart-base");
+      const selectSmartFrequencyEl = document.getElementById("select-smart-frequency");
+      const inputSmartStepEl = document.getElementById("input-smart-step");
+      const inputSmartMaxMultipleEl = document.getElementById("input-smart-max-multiple");
+      const selectMeanMaEl = document.getElementById("select-mean-ma");
+      const inputMeanBuyEl = document.getElementById("input-mean-buy");
+      const inputMeanSellEl = document.getElementById("input-mean-sell");
+      const selectDiffMaEl = document.getElementById("select-diff-ma");
+      const inputDiffBuyEl = document.getElementById("input-diff-buy");
+      const inputDiffSellEl = document.getElementById("input-diff-sell");
+      const inputMultiStepEl = document.getElementById("input-multi-step");
+      const inputMultiAmountEl = document.getElementById("input-multi-amount");
+      const selectMultiMaEl = document.getElementById("select-multi-ma");
+      const selectTrendMaEl = document.getElementById("select-trend-ma");
+      const backtestSummaryEl = document.getElementById("backtest-summary");
+      const backtestCompareEl = document.getElementById("backtest-compare");
+      const backtestTradesEl = document.getElementById("backtest-trades");
+      const backtestChartEl = document.getElementById("backtest-chart");
+      const chkBacktestPriceEl = document.getElementById("chk-backtest-price");
+      const btnAddLive = document.getElementById("btn-add-live");
+      const btnRunBacktest = document.getElementById("btn-run-backtest");
+      let riskInput = [];
       let maDiffIntervalChart = null; // 偏差区间方差图
       const tabPriceTrend = document.getElementById("tab-price-trend");
       const tabMaDiff = document.getElementById("tab-ma-diff");
+      const tabBacktest = document.getElementById("tab-backtest");
       const contentPriceTrend = document.getElementById("content-price-trend");
       const contentMaDiff = document.getElementById("content-ma-diff");
+      const contentBacktest = document.getElementById("content-backtest");
 
       const DEFAULT_START_DATE = "2005-01-01";
+      const BACKTEST_DRAFT_KEY = "fund_analyzer_backtest_draft";
       function getDefaultEndDate() {
         return new Date().toISOString().slice(0, 10);
       }
@@ -291,9 +748,15 @@
 
       let chart;
       let maDiffChart;
+      let backtestChart;
+      let lastBacktestResult = null;
+      let lastBacktestInitialCash = null;
+      let lastBacktestPayload = null;
       let allIndices = [];
       let selectedIndexIds = new Set();
       let pricesData = {}; // { indexId: { index, prices } }
+      let riskProfileFull = [];
+      let riskProfileDates = [];
       let maDiffPricesData = null; // { index, prices } for single index
       let maDiffFullDates = []; // 全量日期数组，用于 dataZoom 筛选
       let maDiffFullDiffValues = []; // 全量偏差值数组，用于 dataZoom 筛选
@@ -305,6 +768,8 @@
       let maDiffFullMaValues = []; // 全量均值数组，用于 tooltip
       let maDiffDDStartDate = ""; // 最大回撤区间开始日期（用于趋势图红色标记）
       let maDiffDDEndDate = "";
+      let maDiffHoverDate = ""; // 鼠标悬停日期，用于风险分析展示
+      let maDiffRecentYears = 0; // 快捷时间范围（年），0 表示全部
 
       function initChart() {
         const chartDom = document.getElementById("chart");
@@ -430,16 +895,38 @@
           ],
           series: [],
         });
+        // 鼠标悬停时更新风险分析，离开图表后恢复最新
+        maDiffChart.off("updateAxisPointer");
+        maDiffChart.on("updateAxisPointer", function (event) {
+          const axisInfo = event && event.axesInfo && event.axesInfo[0];
+          if (!axisInfo) return;
+          const dateStr = axisInfo.value != null ? String(axisInfo.value) : "";
+          if (dateStr && dateStr !== maDiffHoverDate) {
+            maDiffHoverDate = dateStr;
+            updateMaDiffRiskAnalysis();
+          }
+        });
+        maDiffChart.getZr().off("globalout");
+        maDiffChart.getZr().on("globalout", function () {
+          if (maDiffHoverDate) {
+            maDiffHoverDate = "";
+            updateMaDiffRiskAnalysis();
+          }
+        });
         window.addEventListener("resize", () => maDiffChart && maDiffChart.resize());
       }
 
 
       function renderIndicesSelect(indices) {
-        allIndices = indices || [];
+        const list = Array.isArray(indices) ? indices : [];
+        allIndices = list;
         selectIndexEl.innerHTML = '<option value="">选择指数...</option>';
         selectIndexMaDiffEl.innerHTML = '<option value="">请选择指数...</option>';
+        if (selectIndexBacktestEl) {
+          selectIndexBacktestEl.innerHTML = '<option value="">请选择指数...</option>';
+        }
         
-        indices.forEach((idx) => {
+        list.forEach((idx) => {
           const opt = document.createElement("option");
           opt.value = idx.id;
           opt.textContent = `${idx.name || idx.code}（${idx.code}）`;
@@ -450,6 +937,17 @@
           opt2.value = idx.id;
           opt2.textContent = `${idx.name || idx.code}（${idx.code}）`;
           selectIndexMaDiffEl.appendChild(opt2);
+
+          if (selectIndexBacktestEl) {
+            const opt3 = document.createElement("option");
+            opt3.value = idx.id;
+            opt3.textContent = `${idx.name || idx.code}（${idx.code}）`;
+            selectIndexBacktestEl.appendChild(opt3);
+          }
+        });
+        chart.off("dataZoom");
+        chart.on("dataZoom", function () {
+          updateRiskProfileForVisibleRange();
         });
       }
 
@@ -492,9 +990,69 @@
         try {
           const data = await apiFetch("/indices");
           renderIndicesSelect(data || []);
+          renderSelectedIndices();
         } catch (e) {
           showToast(e.message || "加载指数列表失败", "error");
         }
+      }
+
+      function applyBacktestDraft() {
+        if (!selectIndexBacktestEl) return false;
+        const raw = localStorage.getItem(BACKTEST_DRAFT_KEY);
+        if (!raw) return false;
+        let draft = null;
+        try {
+          draft = JSON.parse(raw);
+        } catch (e) {
+          localStorage.removeItem(BACKTEST_DRAFT_KEY);
+          return false;
+        }
+        if (!draft || typeof draft !== "object") {
+          localStorage.removeItem(BACKTEST_DRAFT_KEY);
+          return false;
+        }
+
+        let indexId = draft.index_id;
+        if (!indexId && draft.index_code) {
+          const found = allIndices.find(i => i.code === draft.index_code);
+          if (found) indexId = found.id;
+        }
+        if (indexId) {
+          selectIndexBacktestEl.value = String(indexId);
+        }
+
+        if (draft.strategy && backtestStrategyEl) {
+          backtestStrategyEl.value = draft.strategy;
+        }
+        updateBacktestParamsVisibility();
+
+        const params = draft.params || {};
+        if (draft.strategy === "dca") {
+          if (inputDcaAmountEl && params.amount != null) inputDcaAmountEl.value = params.amount;
+          if (selectDcaFrequencyEl && params.frequency) selectDcaFrequencyEl.value = params.frequency;
+        } else if (draft.strategy === "smart_dca") {
+          if (inputSmartBaseEl && params.base_amount != null) inputSmartBaseEl.value = params.base_amount;
+          if (selectSmartFrequencyEl && params.frequency) selectSmartFrequencyEl.value = params.frequency;
+          if (inputSmartStepEl && params.step_pct != null) inputSmartStepEl.value = params.step_pct;
+          if (inputSmartMaxMultipleEl && params.max_multiplier != null) inputSmartMaxMultipleEl.value = params.max_multiplier;
+        } else if (draft.strategy === "mean_reversion") {
+          if (selectMeanMaEl && params.ma_period != null) selectMeanMaEl.value = params.ma_period;
+          if (inputMeanBuyEl && params.buy_threshold_pct != null) inputMeanBuyEl.value = params.buy_threshold_pct;
+          if (inputMeanSellEl && params.sell_threshold_pct != null) inputMeanSellEl.value = params.sell_threshold_pct;
+        } else if (draft.strategy === "mean_reversion_multi") {
+          if (selectMultiMaEl && params.ma_period != null) selectMultiMaEl.value = params.ma_period;
+          if (inputMultiStepEl && params.step_pct != null) inputMultiStepEl.value = params.step_pct;
+          if (inputMultiAmountEl && params.order_amount != null) inputMultiAmountEl.value = params.order_amount;
+        } else if (draft.strategy === "ma_diff") {
+          if (selectDiffMaEl && params.ma_period != null) selectDiffMaEl.value = params.ma_period;
+          if (inputDiffBuyEl && params.buy_diff != null) inputDiffBuyEl.value = params.buy_diff;
+          if (inputDiffSellEl && params.sell_diff != null) inputDiffSellEl.value = params.sell_diff;
+        } else if (draft.strategy === "trend_following") {
+          if (selectTrendMaEl && params.ma_period != null) selectTrendMaEl.value = params.ma_period;
+        }
+
+        localStorage.removeItem(BACKTEST_DRAFT_KEY);
+        return true;
       }
 
       async function loadMaDiffPrices() {
@@ -523,6 +1081,80 @@
         }
       }
 
+      function normalizeTradeDate(value) {
+        return typeof value === "string"
+          ? value
+          : (value && value.toString ? value.toString().slice(0, 10) : String(value));
+      }
+
+      function formatDateOnly(d) {
+        return d.toISOString().slice(0, 10);
+      }
+
+      function filterMaDiffPricesByRecentYears(prices) {
+        if (!maDiffRecentYears || !prices || prices.length === 0) return prices;
+        let latestDateStr = "";
+        prices.forEach((p) => {
+          const ds = normalizeTradeDate(p.trade_date);
+          if (!latestDateStr || ds > latestDateStr) latestDateStr = ds;
+        });
+        if (!latestDateStr) return prices;
+        const latest = new Date(latestDateStr);
+        if (Number.isNaN(latest.getTime())) return prices;
+        const cutoff = new Date(latest);
+        cutoff.setFullYear(cutoff.getFullYear() - maDiffRecentYears);
+        const cutoffStr = formatDateOnly(cutoff);
+        return prices.filter((p) => {
+          const ds = normalizeTradeDate(p.trade_date);
+          return ds >= cutoffStr;
+        });
+      }
+
+      function updateMaDiffRangeButtons() {
+        maDiffRangeButtons.forEach((btn) => {
+          const years = Number(btn.dataset.maDiffRange || 0);
+          const active = years === maDiffRecentYears;
+          btn.classList.toggle("bg-indigo-600/30", active);
+          btn.classList.toggle("border-indigo-400", active);
+          btn.classList.toggle("text-indigo-100", active);
+        });
+      }
+
+      function updateBacktestRangeButtons(activeYears) {
+        backtestRangeButtons.forEach((btn) => {
+          const years = Number(btn.dataset.backtestRange || 0);
+          const active = years === activeYears;
+          btn.classList.toggle("bg-indigo-600/30", active);
+          btn.classList.toggle("border-indigo-400", active);
+          btn.classList.toggle("text-indigo-100", active);
+        });
+      }
+
+      function setBacktestRange(years) {
+        if (!inputBacktestStartEl || !inputBacktestEndEl) return;
+        const endDate = getDefaultEndDate();
+        inputBacktestEndEl.value = endDate;
+        if (!years) {
+          inputBacktestStartEl.value = DEFAULT_START_DATE;
+          updateBacktestRangeButtons(0);
+          return;
+        }
+        const end = new Date(endDate);
+        if (Number.isNaN(end.getTime())) return;
+        const start = new Date(end);
+        start.setFullYear(start.getFullYear() - years);
+        inputBacktestStartEl.value = formatDateOnly(start);
+        updateBacktestRangeButtons(years);
+      }
+
+      function setMaDiffRecentYears(years) {
+        const next = (maDiffRecentYears === years) ? 0 : years;
+        maDiffRecentYears = next;
+        updateMaDiffRangeButtons();
+        maDiffHoverDate = "";
+        if (maDiffPricesData) updateMaDiffChart();
+      }
+
       function updateMaDiffChart() {
         if (!maDiffChart) return;
 
@@ -548,14 +1180,30 @@
         const maKey = `ma_${period}`;
         const diffKey = `ma${period}_diff`;
 
-        const prices = maDiffPricesData.prices;
+        const prices = filterMaDiffPricesByRecentYears(maDiffPricesData.prices);
+        if (!prices || prices.length === 0) {
+          maDiffChart.setOption({
+            series: [],
+            xAxis: { data: [] },
+          }, { notMerge: true });
+          maDiffChartMetaEl.textContent = "";
+          if (maDiffStatsRowEl) maDiffStatsRowEl.classList.add("hidden");
+          maDiffStatsEl.classList.add("hidden");
+          if (maDiffRiskAnalysisEl) maDiffRiskAnalysisEl.classList.add("hidden");
+          maDiffIntervalStatsEl.classList.add("hidden");
+          maDiffLastVisibleDates = [];
+          maDiffLastVisibleDiffValues = [];
+          maDiffFullDeviationsByPeriod = {};
+          maDiffLastVisibleDeviationsByPeriod = {};
+          return;
+        }
         const sortedDates = [];
         const closeValues = [];
         const maValues = [];
         const diffValues = [];
 
         prices.forEach((p) => {
-          const dateStr = typeof p.trade_date === "string" ? p.trade_date : (p.trade_date && p.trade_date.toString ? p.trade_date.toString().slice(0, 10) : String(p.trade_date));
+          const dateStr = normalizeTradeDate(p.trade_date);
           sortedDates.push(dateStr);
           closeValues.push(p.close != null ? Number(p.close) : null);
           maValues.push(p[maKey] != null ? Number(p[maKey]) : null);
@@ -592,6 +1240,7 @@
         MA_PERIODS.forEach(function(per) {
           maDiffLastVisibleDeviationsByPeriod[per] = (maDiffFullDeviationsByPeriod[per] || []).slice();
         });
+        maDiffHoverDate = "";
         updateMaDiffStats(sortedDates, diffValues, closeValues);
         updateMaDiffIntervalStats();
         updateMaDiffRiskAnalysis();
@@ -602,6 +1251,20 @@
         const ddSegmentData = (ddStartIdx >= 0 && ddEndIdx >= 0 && ddStartIdx <= ddEndIdx)
           ? closeValues.map(function(v, i) { return (i >= ddStartIdx && i <= ddEndIdx) ? v : null; })
           : null;
+        function getBarColor(dataIndex, isEmphasis) {
+          const val = diffValues[dataIndex];
+          if (val == null) return isEmphasis ? "rgba(100, 116, 139, 0.5)" : "rgba(100, 116, 139, 0.35)";
+          const currClose = closeValues[dataIndex];
+          const prevClose = dataIndex > 0 ? closeValues[dataIndex - 1] : null;
+          if (currClose == null || prevClose == null) {
+            return isEmphasis ? "rgba(148, 163, 184, 0.7)" : "rgba(148, 163, 184, 0.5)";
+          }
+          const isUp = currClose >= prevClose;
+          if (isUp) {
+            return isEmphasis ? "rgba(74, 222, 128, 0.7)" : "rgba(74, 222, 128, 0.45)";
+          }
+          return isEmphasis ? "rgba(248, 113, 113, 0.75)" : "rgba(248, 113, 113, 0.5)";
+        }
         const seriesBase = [
           {
             name: "收盘价",
@@ -844,10 +1507,24 @@
         const ddSegmentData = (ddStartIdx >= 0 && ddEndIdx >= 0 && ddStartIdx <= ddEndIdx)
           ? closeValues.map(function(v, i) { return (i >= ddStartIdx && i <= ddEndIdx) ? v : null; })
           : null;
+        function getBarColor(dataIndex, isEmphasis) {
+          const val = diffValues[dataIndex];
+          if (val == null) return isEmphasis ? "rgba(100, 116, 139, 0.5)" : "rgba(100, 116, 139, 0.35)";
+          const currClose = closeValues[dataIndex];
+          const prevClose = dataIndex > 0 ? closeValues[dataIndex - 1] : null;
+          if (currClose == null || prevClose == null) {
+            return isEmphasis ? "rgba(148, 163, 184, 0.7)" : "rgba(148, 163, 184, 0.5)";
+          }
+          const isUp = currClose >= prevClose;
+          if (isUp) {
+            return isEmphasis ? "rgba(74, 222, 128, 0.7)" : "rgba(74, 222, 128, 0.45)";
+          }
+          return isEmphasis ? "rgba(248, 113, 113, 0.75)" : "rgba(248, 113, 113, 0.5)";
+        }
         const seriesBase = [
           { name: "收盘价", type: "line", yAxisIndex: 0, data: closeValues, symbol: "circle", symbolSize: 4, showSymbol: false, smooth: true, smoothMonotone: "x", lineStyle: { width: 2.5, color: "rgba(96, 165, 250, 0.95)", shadowBlur: 0, shadowColor: "transparent" }, itemStyle: { color: "#60a5fa", borderWidth: 0 }, connectNulls: false },
           { name: "MA" + period, type: "line", yAxisIndex: 0, data: maValues, symbol: "circle", symbolSize: 4, showSymbol: false, smooth: true, smoothMonotone: "x", lineStyle: { width: 2.5, color: "rgba(74, 222, 128, 0.95)", shadowBlur: 0, shadowColor: "transparent" }, itemStyle: { color: "#4ade80", borderWidth: 0 }, connectNulls: false },
-          { name: "均值偏差", type: "bar", yAxisIndex: 1, data: diffValues, barMaxWidth: 14, barGap: "30%", itemStyle: { color: function(params) { const val = params.value; if (val == null) return "rgba(100, 116, 139, 0.35)"; return val >= 0 ? "rgba(251, 146, 60, 0.65)" : "rgba(148, 163, 184, 0.5)"; } }, emphasis: { itemStyle: { color: function(params) { const val = params.value; if (val == null) return "rgba(100, 116, 139, 0.5)"; return val >= 0 ? "rgba(251, 146, 60, 0.85)" : "rgba(148, 163, 184, 0.7)"; } } }, barBorderRadius: [4, 4, 0, 0], connectNulls: false }
+          { name: "均值偏差", type: "bar", yAxisIndex: 1, data: diffValues, barMaxWidth: 14, barGap: "30%", itemStyle: { color: function(params) { return getBarColor(params.dataIndex, false); } }, emphasis: { itemStyle: { color: function(params) { return getBarColor(params.dataIndex, true); } } }, barBorderRadius: [4, 4, 0, 0], connectNulls: false }
         ];
         const ddSeries = ddSegmentData ? { name: "最大回撤区间", type: "line", yAxisIndex: 0, data: ddSegmentData, symbol: "circle", symbolSize: 5, showSymbol: true, smooth: true, smoothMonotone: "x", lineStyle: { width: 2.5, color: "rgba(239, 68, 68, 0.95)", shadowBlur: 0, shadowColor: "transparent" }, itemStyle: { color: "#ef4444", borderWidth: 0 }, connectNulls: false } : null;
         const series = ddSeries ? [ seriesBase[0], ddSeries, seriesBase[1], seriesBase[2] ] : seriesBase;
@@ -859,6 +1536,9 @@
         if (!maDiffRiskListEl) return;
         maDiffRiskListEl.innerHTML = "";
         let hasAny = false;
+        const hoverIndex = (maDiffHoverDate && maDiffLastVisibleDates)
+          ? maDiffLastVisibleDates.indexOf(maDiffHoverDate)
+          : -1;
         periods.forEach(function(per) {
           const arr = maDiffLastVisibleDeviationsByPeriod[per];
           const valid = (arr || []).filter(function(v) { return v != null && !Number.isNaN(Number(v)); });
@@ -874,7 +1554,13 @@
             return;
           }
           hasAny = true;
-          const current = valid[valid.length - 1];
+          let current = valid[valid.length - 1];
+          if (hoverIndex >= 0 && arr && hoverIndex < arr.length) {
+            const hoverVal = arr[hoverIndex];
+            if (hoverVal != null && !Number.isNaN(Number(hoverVal))) {
+              current = hoverVal;
+            }
+          }
           const countBelow = valid.filter(function(v) { return v < current; }).length;
           const pct = Math.min(100, Math.max(0, (countBelow / valid.length) * 100));
           const scale = document.createElement("div");
@@ -1133,6 +1819,7 @@
         const series = [];
         const allDates = new Set();
         const indexNames = [];
+        const riskInput = [];
 
         // 只收集当前选中指数的日期，移除某指数后走势图同步去掉该指数
         selectedIndexIds.forEach((indexId) => {
@@ -1175,6 +1862,24 @@
           const closeValues = sortedDates.map((date) => {
             const priceData = pricesMap.get(date);
             return priceData && priceData.close != null ? Number(priceData.close) : null;
+          });
+
+          const ownDates = [];
+          const ownCloseValues = [];
+          data.prices.forEach((p) => {
+            const d = normalizeTradeDate(p.trade_date);
+            const v = p.close != null ? Number(p.close) : null;
+            if (d && v != null && !Number.isNaN(v)) {
+              ownDates.push(d);
+              ownCloseValues.push(v);
+            }
+          });
+
+          riskInput.push({
+            id: indexId,
+            name: `${indexInfo.name || indexInfo.code}（${indexInfo.code}）`,
+            dates: ownDates,
+            closeValues: ownCloseValues,
           });
 
           series.push({
@@ -1300,6 +2005,30 @@
 
         // 更新图表配置，保留时间滑窗（dataZoom）便于快速选择显示时间区域
         chart.setOption({
+          tooltip: {
+            trigger: "axis",
+            axisPointer: { type: "cross" },
+            backgroundColor: "rgba(15, 23, 42, 0.92)",
+            borderColor: "rgba(100, 116, 139, 0.4)",
+            textStyle: { color: "#e2e8f0", fontSize: 12 },
+            formatter: function (params) {
+              if (!params || params.length === 0) return "";
+              const list = Array.isArray(params) ? params : [params];
+              const first = list[0];
+              const axisLabel = first && first.axisValue != null ? first.axisValue : "";
+              const rows = list
+                .filter(p => p.seriesType === "line")
+                .map(p => {
+                  const val = p.data;
+                  const v = val == null || Number.isNaN(Number(val)) ? "—" : Number(val).toLocaleString("en-US", { maximumFractionDigits: 2 });
+                  return `<div>${p.marker}${p.seriesName}：<span style="color:#e2e8f0;">${v}</span></div>`;
+                });
+              return [
+                `<div style="margin-bottom:6px;font-weight:bold;color:#e2e8f0;">${axisLabel}</div>`,
+                rows.join(""),
+              ].join("");
+            },
+          },
           grid: { left: 60, right: 30, top: 50, bottom: 80 },
           dataZoom: [
             {
@@ -1351,6 +2080,50 @@
         } else {
           chartMetaEl.textContent = "";
         }
+
+        riskProfileFull = riskInput;
+        riskProfileDates = sortedDates;
+        updateRiskProfileForVisibleRange();
+      }
+
+      function updateRiskProfileForVisibleRange() {
+        if (!chart || !riskProfileFull || riskProfileFull.length === 0) {
+          updateRiskProfile([]);
+          return;
+        }
+        const dataZoom = chart.getOption().dataZoom || [];
+        let start = 0;
+        let end = 100;
+        for (let i = 0; i < dataZoom.length; i++) {
+          if (typeof dataZoom[i].start === "number" && typeof dataZoom[i].end === "number") {
+            start = dataZoom[i].start;
+            end = dataZoom[i].end;
+            break;
+          }
+        }
+        const totalCount = riskProfileDates.length || 0;
+        if (!totalCount) {
+          updateRiskProfile([]);
+          return;
+        }
+        const startIndex = Math.floor((start / 100) * totalCount);
+        const endIndex = Math.ceil((end / 100) * totalCount);
+        const visibleDates = riskProfileDates.slice(startIndex, endIndex);
+        const dateSet = new Set(visibleDates);
+
+        const filtered = riskProfileFull.map((it) => {
+          const dates = [];
+          const closeValues = [];
+          for (let i = 0; i < it.dates.length; i++) {
+            const d = it.dates[i];
+            if (dateSet.has(d)) {
+              dates.push(d);
+              closeValues.push(it.closeValues[i]);
+            }
+          }
+          return { ...it, dates, closeValues };
+        });
+        updateRiskProfile(filtered);
       }
 
       // 均线复选框变化时更新图表
@@ -1365,25 +2138,23 @@
 
       // 选项卡切换
       function switchTab(activeTab) {
-        if (activeTab === "price-trend") {
-          tabPriceTrend.className = "px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-indigo-600 text-white";
-          tabMaDiff.className = "px-4 py-2 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-800";
-          contentPriceTrend.classList.remove("hidden");
-          contentMaDiff.classList.add("hidden");
-          // 延迟resize确保图表容器可见
-          setTimeout(() => {
-            if (chart) chart.resize();
-          }, 100);
-        } else {
-          tabPriceTrend.className = "px-4 py-2 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-800";
-          tabMaDiff.className = "px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-indigo-600 text-white";
-          contentPriceTrend.classList.add("hidden");
-          contentMaDiff.classList.remove("hidden");
-          // 延迟resize确保图表容器可见
-          setTimeout(() => {
-            if (maDiffChart) maDiffChart.resize();
-          }, 100);
-        }
+        const isPrice = activeTab === "price-trend";
+        const isMaDiff = activeTab === "ma-diff";
+        const isBacktest = activeTab === "backtest";
+
+        tabPriceTrend.className = "px-4 py-2 rounded-lg text-sm font-medium transition-colors " + (isPrice ? "bg-indigo-600 text-white" : "text-slate-300 hover:bg-slate-800");
+        tabMaDiff.className = "px-4 py-2 rounded-lg text-sm font-medium transition-colors " + (isMaDiff ? "bg-indigo-600 text-white" : "text-slate-300 hover:bg-slate-800");
+        tabBacktest.className = "px-4 py-2 rounded-lg text-sm font-medium transition-colors " + (isBacktest ? "bg-indigo-600 text-white" : "text-slate-300 hover:bg-slate-800");
+
+        contentPriceTrend.classList.toggle("hidden", !isPrice);
+        contentMaDiff.classList.toggle("hidden", !isMaDiff);
+        contentBacktest.classList.toggle("hidden", !isBacktest);
+
+        setTimeout(() => {
+          if (isPrice && chart) chart.resize();
+          if (isMaDiff && maDiffChart) maDiffChart.resize();
+          if (isBacktest && backtestChart) backtestChart.resize();
+        }, 100);
       }
 
       tabPriceTrend.addEventListener("click", () => {
@@ -1394,6 +2165,10 @@
         switchTab("ma-diff");
       });
 
+      tabBacktest.addEventListener("click", () => {
+        switchTab("backtest");
+      });
+
       // 均值偏差趋势分析的指数和周期选择变化
       selectIndexMaDiffEl.addEventListener("change", () => {
         loadMaDiffPrices();
@@ -1402,8 +2177,19 @@
       selectMaPeriodEl.addEventListener("change", () => {
         if (maDiffPricesData) {
           updateMaDiffChart();
+          maDiffHoverDate = "";
+          updateMaDiffRiskAnalysis();
         }
       });
+      if (maDiffRangeButtons && maDiffRangeButtons.length > 0) {
+        maDiffRangeButtons.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const years = Number(btn.dataset.maDiffRange || 0);
+            if (years >= 0) setMaDiffRecentYears(years);
+          });
+        });
+        updateMaDiffRangeButtons();
+      }
 
       if (inputMaDiffIntervalSizeEl) {
         inputMaDiffIntervalSizeEl.addEventListener("change", updateMaDiffIntervalStats);
@@ -1413,12 +2199,803 @@
         });
       }
 
+      function updateRiskProfile(items) {
+        if (!riskProfileBodyEl || !riskCorrTableEl) return;
+        if (!items || items.length === 0) {
+          riskProfileBodyEl.innerHTML =
+            '<tr><td colspan="5" class="px-3 py-4 text-center text-slate-400">暂无数据</td></tr>';
+          riskCorrTableEl.querySelector("thead").innerHTML = "";
+          riskCorrTableEl.querySelector("tbody").innerHTML = "";
+          return;
+        }
+        const fmtPct = (v) => (v == null || Number.isNaN(v) ? "—" : (v * 100).toFixed(2) + "%");
+        const fmtNum = (v) => (v == null || Number.isNaN(v) ? "—" : v.toFixed(2));
+
+        const metrics = items.map((it) => {
+          const closes = it.closeValues.filter((v) => v != null && !Number.isNaN(Number(v)));
+          const returns = [];
+          for (let i = 1; i < it.closeValues.length; i++) {
+            const prev = it.closeValues[i - 1];
+            const curr = it.closeValues[i];
+            if (prev != null && curr != null && prev > 0) {
+              returns.push((curr - prev) / prev);
+            }
+          }
+          let annualReturn = null;
+          if (it.closeValues.length >= 2) {
+            const first = it.closeValues[0];
+            const last = it.closeValues[it.closeValues.length - 1];
+            if (first != null && last != null && first > 0) {
+              const years = Math.max(1, it.closeValues.length / 252);
+              annualReturn = Math.pow(last / first, 1 / years) - 1;
+            }
+          }
+          const mean = returns.length ? returns.reduce((a, b) => a + b, 0) / returns.length : null;
+          const std = returns.length > 1
+            ? Math.sqrt(returns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / (returns.length - 1))
+            : null;
+          const vol = std != null ? std * Math.sqrt(252) : null;
+          const downside = returns.filter((r) => r < 0);
+          const downMean = downside.length ? downside.reduce((a, b) => a + b, 0) / downside.length : null;
+          const downStd = downside.length > 1
+            ? Math.sqrt(downside.reduce((s, r) => s + Math.pow(r - downMean, 2), 0) / (downside.length - 1))
+            : null;
+          const sharpe = std && std > 0 ? (mean / std) * Math.sqrt(252) : null;
+          const sortino = downStd && downStd > 0 ? (mean / downStd) * Math.sqrt(252) : null;
+
+          let peak = null;
+          let maxDd = 0;
+          closes.forEach((v) => {
+            if (peak == null || v > peak) peak = v;
+            if (peak && peak > 0) {
+              const dd = (peak - v) / peak;
+              if (dd > maxDd) maxDd = dd;
+            }
+          });
+
+          return {
+            name: it.name,
+            annualReturn,
+            vol,
+            maxDd,
+            sharpe,
+            sortino,
+            returns,
+            dates: it.dates,
+            closes: it.closeValues,
+          };
+        });
+
+        riskProfileBodyEl.innerHTML = metrics
+          .map((m) => {
+            return `
+              <tr>
+                <td class="px-3 py-2 whitespace-nowrap">${m.name}</td>
+                <td class="px-3 py-2">${fmtPct(m.annualReturn)}</td>
+                <td class="px-3 py-2">${fmtPct(m.vol)}</td>
+                <td class="px-3 py-2">${fmtPct(m.maxDd)}</td>
+                <td class="px-3 py-2">${fmtNum(m.sharpe)}</td>
+                <td class="px-3 py-2">${fmtNum(m.sortino)}</td>
+              </tr>
+            `;
+          })
+          .join("");
+
+        // 相关性矩阵（基于共同交易日的日收益）
+        const names = items.map((i) => i.name);
+        const returnMap = items.map((it) => {
+          const map = new Map();
+          for (let i = 1; i < it.dates.length; i++) {
+            const prev = it.closeValues[i - 1];
+            const curr = it.closeValues[i];
+            if (prev != null && curr != null && prev > 0) {
+              map.set(it.dates[i], (curr - prev) / prev);
+            }
+          }
+          return map;
+        });
+
+        const commonDates = (() => {
+          if (returnMap.length === 0) return [];
+          let dates = new Set(returnMap[0].keys());
+          for (let i = 1; i < returnMap.length; i++) {
+            dates = new Set([...dates].filter((d) => returnMap[i].has(d)));
+          }
+          return Array.from(dates).sort();
+        })();
+
+        const corr = (a, b) => {
+          if (a.length !== b.length || a.length < 2) return null;
+          const meanA = a.reduce((s, v) => s + v, 0) / a.length;
+          const meanB = b.reduce((s, v) => s + v, 0) / b.length;
+          let num = 0;
+          let denA = 0;
+          let denB = 0;
+          for (let i = 0; i < a.length; i++) {
+            const da = a[i] - meanA;
+            const db = b[i] - meanB;
+            num += da * db;
+            denA += da * da;
+            denB += db * db;
+          }
+          const den = Math.sqrt(denA * denB);
+          return den > 0 ? num / den : null;
+        };
+
+        const head = ["<tr><th class='px-3 py-2 font-medium whitespace-nowrap'>相关性</th>"];
+        names.forEach((n) => head.push(`<th class="px-3 py-2 font-medium whitespace-nowrap">${n}</th>`));
+        head.push("</tr>");
+        riskCorrTableEl.querySelector("thead").innerHTML = head.join("");
+
+        const body = [];
+        names.forEach((name, i) => {
+          const rowReturns = returnMap[i];
+          const rowArr = commonDates.map((d) => rowReturns.get(d)).filter((v) => v != null);
+          const cols = [`<td class="px-3 py-2 whitespace-nowrap">${name}</td>`];
+          names.forEach((_, j) => {
+            const colReturns = returnMap[j];
+            const colArr = commonDates.map((d) => colReturns.get(d)).filter((v) => v != null);
+            const c = corr(rowArr, colArr);
+            cols.push(`<td class="px-3 py-2">${fmtNum(c)}</td>`);
+          });
+          body.push(`<tr>${cols.join("")}</tr>`);
+        });
+        riskCorrTableEl.querySelector("tbody").innerHTML = body.join("");
+      }
+
+      function initBacktestChart() {
+        if (!backtestChartEl) return;
+        backtestChart = echarts.init(backtestChartEl, "dark");
+        backtestChart.setOption({
+          tooltip: {
+            trigger: "axis",
+            triggerOn: "mousemove|click",
+            axisPointer: { type: "cross" },
+            backgroundColor: "rgba(30, 41, 59, 0.92)",
+            borderColor: "rgba(100, 116, 139, 0.4)",
+            textStyle: { color: "#e2e8f0", fontSize: 12 },
+          },
+          grid: { left: 60, right: 30, top: 40, bottom: 60 },
+          xAxis: { type: "category", data: [], axisLabel: { color: "#94a3b8", rotate: 45 } },
+          yAxis: { type: "value", axisLabel: { color: "#94a3b8" } },
+          series: [],
+        });
+        backtestChart.off("mouseover");
+        backtestChart.on("mouseover", function (params) {
+          if (params && params.seriesType === "scatter") {
+            backtestChart.dispatchAction({
+              type: "showTip",
+              seriesIndex: params.seriesIndex,
+              dataIndex: params.dataIndex,
+            });
+          }
+        });
+        backtestChart.getZr().off("globalout");
+        backtestChart.getZr().on("globalout", function () {
+          backtestChart.dispatchAction({ type: "hideTip" });
+        });
+        window.addEventListener("resize", () => backtestChart && backtestChart.resize());
+      }
+
+      function updateBacktestParamsVisibility() {
+        const val = backtestStrategyEl ? backtestStrategyEl.value : "dca";
+        if (backtestParamsDcaEl) backtestParamsDcaEl.classList.toggle("hidden", val !== "dca");
+        if (backtestParamsSmartDcaEl) backtestParamsSmartDcaEl.classList.toggle("hidden", val !== "smart_dca");
+        if (backtestParamsMeanEl) backtestParamsMeanEl.classList.toggle("hidden", val !== "mean_reversion");
+        if (backtestParamsMeanMultiEl) backtestParamsMeanMultiEl.classList.toggle("hidden", val !== "mean_reversion_multi");
+        if (backtestParamsMaDiffEl) backtestParamsMaDiffEl.classList.toggle("hidden", val !== "ma_diff");
+        if (backtestParamsTrendEl) backtestParamsTrendEl.classList.toggle("hidden", val !== "trend_following");
+      }
+
+      async function runBacktest() {
+        if (!selectIndexBacktestEl) return;
+        const indexId = selectIndexBacktestEl.value;
+        if (!indexId) {
+          showToast("请选择指数", "error");
+          return;
+        }
+        const initialCash = Number(inputBacktestCashEl?.value || 0);
+        if (!initialCash || initialCash <= 0) {
+          showToast("初始资金必须大于 0", "error");
+          return;
+        }
+        lastBacktestInitialCash = initialCash;
+        const strategy = backtestStrategyEl ? backtestStrategyEl.value : "dca";
+        const payload = {
+          index_id: parseInt(indexId),
+          strategy,
+          initial_cash: initialCash,
+        };
+        const startDate = (inputBacktestStartEl?.value || "").trim();
+        const endDate = (inputBacktestEndEl?.value || "").trim();
+        function normalizeDateInput(value) {
+          if (!value) return "";
+          if (/^\d{8}$/.test(value)) {
+            return value.slice(0, 4) + "-" + value.slice(4, 6) + "-" + value.slice(6);
+          }
+          return value;
+        }
+        const startNorm = normalizeDateInput(startDate);
+        const endNorm = normalizeDateInput(endDate);
+        if (startNorm) payload.start_date = startNorm;
+        if (endNorm) payload.end_date = endNorm;
+
+        if (strategy === "dca") {
+          payload.dca = {
+            amount: Number(inputDcaAmountEl?.value || 0),
+            frequency: selectDcaFrequencyEl?.value || "monthly",
+          };
+        } else if (strategy === "smart_dca") {
+          payload.smart_dca = {
+            base_amount: Number(inputSmartBaseEl?.value || 0),
+            frequency: selectSmartFrequencyEl?.value || "monthly",
+            step_pct: Number(inputSmartStepEl?.value || 0),
+            max_multiplier: Number(inputSmartMaxMultipleEl?.value || 0),
+          };
+        } else if (strategy === "mean_reversion") {
+          payload.mean_reversion = {
+            ma_period: Number(selectMeanMaEl?.value || 30),
+            buy_threshold_pct: Number(inputMeanBuyEl?.value || 0),
+            sell_threshold_pct: Number(inputMeanSellEl?.value || 0),
+          };
+        } else if (strategy === "mean_reversion_multi") {
+          payload.mean_reversion_multi = {
+            ma_period: Number(selectMultiMaEl?.value || 60),
+            step_pct: Number(inputMultiStepEl?.value || 0),
+            order_amount: Number(inputMultiAmountEl?.value || 0),
+          };
+        } else if (strategy === "ma_diff") {
+          payload.ma_diff = {
+            ma_period: Number(selectDiffMaEl?.value || 60),
+            buy_diff: Number(inputDiffBuyEl?.value || -100),
+            sell_diff: Number(inputDiffSellEl?.value || 100),
+          };
+        } else if (strategy === "trend_following") {
+          payload.trend_following = {
+            ma_period: Number(selectTrendMaEl?.value || 60),
+          };
+        }
+
+        lastBacktestPayload = JSON.parse(JSON.stringify(payload));
+        if (btnRunBacktest) btnRunBacktest.disabled = true;
+        if (backtestChart) {
+          try {
+            backtestChart.dispose();
+          } catch (e) {
+            console.warn("backtestChart dispose failed", e);
+          }
+          backtestChart = null;
+        }
+        try {
+          const res = await apiFetch("/backtest", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          renderBacktestResult(res);
+        } catch (e) {
+          showToast(e.message || "回测失败", "error");
+        } finally {
+          if (btnRunBacktest) btnRunBacktest.disabled = false;
+        }
+      }
+
+      function updateBacktestChart(res) {
+        if (!res || !backtestChart) {
+          console.warn("backtestChart render skipped: chart or res missing", { hasChart: !!backtestChart, hasRes: !!res });
+          return;
+        }
+        if (!res.equity_curve || res.equity_curve.length === 0) {
+          console.warn("backtestChart render skipped: equity_curve empty", res);
+          return;
+        }
+        try {
+        const dates = res.equity_curve.map(p => p.trade_date);
+        const values = res.equity_curve.map(p => p.value);
+        const closeValues = res.equity_curve.map(p => p.price);
+        const valueByDate = {};
+        res.equity_curve.forEach(p => { valueByDate[p.trade_date] = p.value; });
+
+        const trades = res.trades || [];
+        const tradesByDate = {};
+        trades.forEach(t => {
+          if (!tradesByDate[t.trade_date]) tradesByDate[t.trade_date] = [];
+          tradesByDate[t.trade_date].push(t);
+        });
+        const buyPoints = [];
+        const sellPoints = [];
+        let lastBuyPrice = null;
+        let lastBuyShares = null;
+        trades.forEach(t => {
+          const v = valueByDate[t.trade_date];
+          if (v == null) return;
+          const amount = Number(t.price) * Number(t.shares);
+          let profit = null;
+          if (res.strategy === "mean_reversion") {
+            if (t.action === "buy") {
+              lastBuyPrice = Number(t.price);
+              lastBuyShares = Number(t.shares);
+            } else if (t.action === "sell" && lastBuyPrice != null && lastBuyShares != null) {
+              profit = (Number(t.price) - lastBuyPrice) * lastBuyShares;
+              lastBuyPrice = null;
+              lastBuyShares = null;
+            }
+          }
+          const point = {
+            value: [t.trade_date, v],
+            action: t.action,
+            price: t.price,
+            shares: t.shares,
+            amount: amount,
+            cash_after: t.cash_after,
+            position_after: t.position_after,
+            profit: profit,
+            reason: t.reason || "",
+          };
+          if (t.action === "buy") buyPoints.push(point);
+          else sellPoints.push(point);
+        });
+
+        const avgCostValues = [];
+        let costBasis = 0;
+        let positionHold = 0;
+        dates.forEach((d) => {
+          const dayTrades = tradesByDate[d] || [];
+          dayTrades.forEach((t) => {
+            const shares = Number(t.shares) || 0;
+            const price = Number(t.price) || 0;
+            if (t.action === "buy") {
+              costBasis += price * shares;
+              positionHold += shares;
+            } else if (t.action === "sell" && positionHold > 0) {
+              const remaining = Math.max(0, positionHold - shares);
+              if (remaining === 0) {
+                costBasis = 0;
+                positionHold = 0;
+              } else {
+                const ratio = remaining / positionHold;
+                costBasis *= ratio;
+                positionHold = remaining;
+              }
+            }
+          });
+          avgCostValues.push(positionHold > 0 ? (costBasis / positionHold) : null);
+        });
+        const costByDate = {};
+        dates.forEach((d, idx) => { costByDate[d] = avgCostValues[idx]; });
+        buyPoints.forEach((p) => { p.cost = costByDate[p.value[0]]; });
+        sellPoints.forEach((p) => { p.cost = costByDate[p.value[0]]; });
+
+        const series = [
+          {
+            name: "资产净值",
+            type: "line",
+            data: values,
+            smooth: true,
+            showSymbol: false,
+            lineStyle: { width: 2.5, color: "rgba(59, 130, 246, 0.9)" },
+            yAxisIndex: 0,
+          },
+        ];
+        if (chkBacktestPriceEl && chkBacktestPriceEl.checked) {
+          series.push({
+            name: "收盘价",
+            type: "line",
+            data: closeValues,
+            smooth: true,
+            showSymbol: false,
+            lineStyle: { width: 2, color: "rgba(148, 163, 184, 0.7)" },
+            yAxisIndex: 1,
+          });
+        }
+        series.push({
+          name: "成本均线",
+          type: "scatter",
+          data: avgCostValues,
+          symbol: "circle",
+          symbolSize: 4,
+          itemStyle: { color: "rgba(251, 191, 36, 0.9)" },
+          yAxisIndex: 1,
+        });
+        series.push(
+          {
+            name: "买入",
+            type: "scatter",
+            data: buyPoints,
+            symbol: "triangle",
+            symbolSize: 18,
+            z: 10,
+            itemStyle: { color: "#22c55e", borderColor: "#bbf7d0", borderWidth: 1 },
+            tooltip: { trigger: "item" },
+            label: {
+              show: true,
+              formatter: "买入",
+              position: "top",
+              color: "#f8fafc",
+              fontSize: 10,
+            },
+            emphasis: {
+              scale: true,
+              itemStyle: { color: "#4ade80" },
+            },
+          },
+          {
+            name: "卖出",
+            type: "scatter",
+            data: sellPoints,
+            symbol: "triangle",
+            symbolRotate: 180,
+            symbolSize: 18,
+            z: 10,
+            itemStyle: { color: "#ef4444", borderColor: "#fecaca", borderWidth: 1 },
+            tooltip: { trigger: "item" },
+            label: {
+              show: true,
+              formatter: function (params) {
+                const d = params && params.data ? params.data : null;
+                if (d && d.profit != null) {
+                  const sign = Number(d.profit) >= 0 ? "+" : "";
+                  const fmtMoney = (v) =>
+                    (v == null || Number.isNaN(Number(v)))
+                      ? "—"
+                      : Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
+                  return `卖出\n${sign}${fmtMoney(d.profit)}`;
+                }
+                return "卖出";
+              },
+              position: "bottom",
+              color: "#f8fafc",
+              fontSize: 10,
+            },
+            emphasis: {
+              scale: true,
+              itemStyle: { color: "#f87171" },
+            },
+          }
+        );
+
+        const leftValues = values.filter(v => v != null && !Number.isNaN(Number(v)));
+        const rightValues = [];
+        if (chkBacktestPriceEl && chkBacktestPriceEl.checked) {
+          rightValues.push(...closeValues.filter(v => v != null && !Number.isNaN(Number(v))));
+        }
+        rightValues.push(...avgCostValues.filter(v => v != null && !Number.isNaN(Number(v))));
+        const leftMin = leftValues.length ? Math.min(...leftValues) : 0;
+        const leftMax = leftValues.length ? Math.max(...leftValues) : 0;
+        const rightMin = rightValues.length ? Math.min(...rightValues) : 0;
+        const rightMax = rightValues.length ? Math.max(...rightValues) : 0;
+        const leftPad = (leftMax - leftMin) * 0.1;
+        const rightPad = (rightMax - rightMin) * 0.1;
+
+        backtestChart.clear();
+        backtestChart.setOption({
+          tooltip: {
+            trigger: "axis",
+            backgroundColor: "#f8fafc",
+            borderColor: "#e2e8f0",
+            textStyle: { color: "#000", fontSize: 12 },
+            formatter: function (params) {
+              if (!params) return "";
+              const list = Array.isArray(params) ? params : [params];
+              if (list.length === 0) return "";
+              const fmtMoney = (v) =>
+                (v == null || Number.isNaN(Number(v)))
+                  ? "—"
+                  : Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
+              const point = list.find(p => p.seriesType === "scatter");
+              if (point && point.data) {
+                const d = point.data;
+                const pointLabel =
+                  (Array.isArray(d.value) && d.value.length > 0 ? d.value[0] : null) ||
+                  d.trade_date ||
+                  point.axisValue ||
+                  "";
+                const isBuy = d.action === "buy";
+                const actionText = isBuy ? "买入" : "卖出";
+                const actionColor = isBuy ? "#22c55e" : "#ef4444";
+                return [
+                  `<div style="margin-bottom:6px;font-weight:bold;color:#000;">${pointLabel}</div>`,
+                  `<div style="color:${actionColor};font-weight:bold;margin-bottom:4px;">${actionText}</div>`,
+                  `<div>价格：<span style="color:#000;">${fmtMoney(d.price)}</span></div>`,
+                  `<div>份额：<span style="color:#000;">${Number(d.shares).toFixed(4)}</span></div>`,
+                  `<div>金额：<span style="color:#000;">${fmtMoney(d.amount)}</span></div>`,
+                  (d.profit != null
+                    ? `<div>盈利：<span style="color:${Number(d.profit) >= 0 ? "#22c55e" : "#ef4444"};">${fmtMoney(d.profit)}</span></div>`
+                    : ""),
+                  `<div>现金：<span style="color:#000;">${fmtMoney(d.cash_after)}</span></div>`,
+                  `<div>持仓：<span style="color:#000;">${Number(d.position_after).toFixed(4)}</span></div>`,
+                  (d.cost != null ? `<div>成本：<span style="color:#000;">${fmtMoney(d.cost)}</span></div>` : ""),
+                  d.reason ? `<div style="color:#000;margin-top:4px;">原因：${d.reason}</div>` : "",
+                ].join("");
+              }
+              const line = list.find(p => p.seriesName === "资产净值");
+              const close = list.find(p => p.seriesName === "收盘价");
+              const cost = list.find(p => p.seriesName === "成本均线");
+              const getSeriesValue = (p) => {
+                if (!p) return null;
+                const data = p.data != null ? p.data : p.value;
+                if (data == null) return null;
+                if (Array.isArray(data)) {
+                  return data.length > 1 ? data[1] : data[0];
+                }
+                if (typeof data === "object" && data.value != null) {
+                  const v = data.value;
+                  return Array.isArray(v) ? (v.length > 1 ? v[1] : v[0]) : v;
+                }
+                return data;
+              };
+              const rows = [];
+              const lineVal = getSeriesValue(line);
+              const closeVal = getSeriesValue(close);
+              const costVal = getSeriesValue(cost);
+              if (lineVal != null) rows.push(`<div>资产净值：<span style="color:#000;font-weight:600;">${fmtMoney(lineVal)}</span></div>`);
+              if (closeVal != null) rows.push(`<div>收盘价：<span style="color:#000;">${fmtMoney(closeVal)}</span></div>`);
+              if (costVal != null) rows.push(`<div>成本均线：<span style="color:#000;">${fmtMoney(costVal)}</span></div>`);
+              const first = list[0];
+              const axisLabel = first
+                ? (first.axisValue != null
+                    ? first.axisValue
+                    : (Array.isArray(first.value) ? first.value[0] : first.value))
+                : "";
+              const hint = rows.length === 0 ? `<div style="color:#64748b;">无可用数据</div>` : "";
+              return [
+                `<div style="margin-bottom:6px;font-weight:bold;color:#000;">${axisLabel}</div>`,
+                rows.join(""),
+                hint,
+              ].join("");
+            },
+          },
+          axisPointer: {
+            link: [{ xAxisIndex: "all" }],
+            label: { backgroundColor: "#1f2937" },
+          },
+          xAxis: {
+            type: "category",
+            data: dates,
+            axisLabel: { color: "#94a3b8", rotate: 45 },
+          },
+          yAxis: [
+            {
+              type: "value",
+              min: leftValues.length ? leftMin - leftPad : undefined,
+              max: leftValues.length ? leftMax + leftPad : undefined,
+              axisLabel: { color: "#94a3b8" },
+              splitLine: { lineStyle: { color: "rgba(51, 65, 85, 0.35)" } },
+            },
+            {
+              type: "value",
+              min: rightValues.length ? rightMin - rightPad : undefined,
+              max: rightValues.length ? rightMax + rightPad : undefined,
+              axisLabel: { color: "#94a3b8" },
+              splitLine: { show: false },
+            },
+          ],
+          series: series,
+        }, { notMerge: true });
+        setTimeout(() => backtestChart && backtestChart.resize(), 50);
+        } catch (err) {
+          console.error("backtestChart render error", err, res);
+        }
+      }
+
+      function renderBacktestResult(res) {
+        if (!res) return;
+        lastBacktestResult = res;
+        const metrics = res.metrics || {};
+        const strategyMap = {
+          dca: "定投",
+          smart_dca: "智能定投",
+          mean_reversion: "均值回归",
+          mean_reversion_multi: "多轮均值回归",
+            ma_diff: "均值差策略",
+          trend_following: "趋势跟随",
+        };
+        if (backtestSummaryEl) {
+          const fmtMoney = (v) =>
+            (v == null || Number.isNaN(Number(v)))
+              ? "—"
+              : Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
+          const fmtPct = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : Number(v).toFixed(2) + "%");
+          const ddRange = metrics.max_drawdown_start && metrics.max_drawdown_end
+            ? `${metrics.max_drawdown_start} ~ ${metrics.max_drawdown_end}`
+            : "—";
+
+          let fixedRow = {
+            final_value: "—",
+            total_profit: "—",
+            annualized: "—",
+          };
+          const curve = res.equity_curve || [];
+          if (curve.length >= 2 && lastBacktestInitialCash) {
+            const firstPrice = Number(curve[0].price);
+            const lastPrice = Number(curve[curve.length - 1].price);
+            const shares = firstPrice > 0 ? (lastBacktestInitialCash / firstPrice) : 0;
+            const finalValue = shares * lastPrice;
+            const totalProfit = finalValue - lastBacktestInitialCash;
+            const startDate = metrics.start_date ? new Date(metrics.start_date) : null;
+            const endDate = metrics.end_date ? new Date(metrics.end_date) : null;
+            const years = (startDate && endDate)
+              ? Math.max(1, (endDate - startDate) / (1000 * 60 * 60 * 24)) / 365
+              : 1;
+            const annualized = lastBacktestInitialCash > 0
+              ? (Math.pow(finalValue / lastBacktestInitialCash, 1 / years) - 1) * 100
+              : 0;
+            fixedRow = {
+              final_value: fmtMoney(finalValue),
+              total_profit: fmtMoney(totalProfit),
+              annualized: fmtPct(annualized),
+            };
+          }
+
+          backtestSummaryEl.innerHTML = `
+            <div class="overflow-x-auto border border-slate-800/80 rounded-md">
+              <table class="min-w-full text-xs text-left text-slate-200">
+                <thead class="bg-slate-900/90 border-b border-slate-800">
+                  <tr>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">策略</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">交易日</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">总持仓金额</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">总投入金额</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">总盈利</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">年化</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">最大回撤</th>
+                    <th class="px-3 py-2 font-medium whitespace-nowrap">回撤区间</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/80">
+                  <tr>
+                    <td class="px-3 py-2 whitespace-nowrap text-indigo-200">${strategyMap[res.strategy] || res.strategy}</td>
+                    <td class="px-3 py-2 whitespace-nowrap">${metrics.total_days || "—"}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-emerald-200">${fmtMoney(metrics.total_position_value)}</td>
+                    <td class="px-3 py-2 whitespace-nowrap">${fmtMoney(metrics.total_invested)}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-indigo-200">${fmtMoney(metrics.total_profit)}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-indigo-200">${fmtPct(metrics.annualized_return_pct)}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-rose-200">${fmtPct(metrics.max_drawdown_pct)}</td>
+                    <td class="px-3 py-2 whitespace-nowrap">${ddRange}</td>
+                  </tr>
+                  <tr>
+                    <td class="px-3 py-2 whitespace-nowrap text-slate-200">期初一次性买入</td>
+                    <td class="px-3 py-2 whitespace-nowrap">${metrics.total_days || "—"}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-emerald-200">${fixedRow.final_value}</td>
+                    <td class="px-3 py-2 whitespace-nowrap">${lastBacktestInitialCash ? fmtMoney(lastBacktestInitialCash) : "—"}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-indigo-200">${fixedRow.total_profit || "—"}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-indigo-200">${fixedRow.annualized}</td>
+                    <td class="px-3 py-2 whitespace-nowrap">—</td>
+                    <td class="px-3 py-2 whitespace-nowrap">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+        if (backtestCompareEl) {
+          backtestCompareEl.innerHTML = "";
+        }
+
+        if (!backtestChart) {
+          initBacktestChart();
+        }
+        if (backtestChart && res.equity_curve) {
+          updateBacktestChart(res);
+        } else {
+          console.warn("backtestChart not ready after init", { hasChart: !!backtestChart, hasCurve: !!(res && res.equity_curve) });
+        }
+
+        if (backtestTradesEl) {
+          const trades = (res.trades || []).slice().reverse();
+          if (trades.length === 0) {
+            backtestTradesEl.innerHTML = '<div class="text-slate-500">暂无交易</div>';
+          } else {
+            const equityByDate = {};
+            (res.equity_curve || []).forEach(p => { equityByDate[p.trade_date] = p; });
+            const fmtMoney = (v) =>
+              (v == null || Number.isNaN(Number(v)))
+                ? "—"
+                : Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
+            let totalInvested = 0;
+            const header = `
+              <div class="grid grid-cols-2 md:grid-cols-8 gap-2 py-1 border-b border-slate-800/80 text-slate-400">
+                <span>日期</span>
+                <span>动作</span>
+                <span>本次投入</span>
+                <span>持仓金额</span>
+                <span>总投入金额</span>
+                <span>成本</span>
+                <span>总盈利</span>
+                <span>备注</span>
+              </div>
+            `;
+            const rows = trades.map(t => {
+              const actionText = t.action === "buy" ? "买入" : "卖出";
+              const color = t.action === "buy" ? "text-emerald-400" : "text-rose-400";
+              const amount = Number(t.price) * Number(t.shares);
+              const eq = equityByDate[t.trade_date];
+              const cost = (eq && eq.position > 0) ? (eq.value - eq.cash) / eq.position : null;
+              if (t.action === "buy") {
+                totalInvested += amount;
+              }
+              const holdingAmount = Number(t.position_after) * Number(t.price);
+              const totalProfit = holdingAmount - totalInvested;
+              const signedAmount = t.action === "buy" ? amount : -amount;
+              return `<div class="grid grid-cols-2 md:grid-cols-8 gap-2 py-1 border-b border-slate-800/60">
+                <span class="text-slate-400">${t.trade_date}</span>
+                <span class="${color}">${actionText}</span>
+                <span>${fmtMoney(signedAmount)}</span>
+                <span>${fmtMoney(holdingAmount)}</span>
+                <span>${fmtMoney(totalInvested)}</span>
+                <span>${cost != null ? fmtMoney(cost) : "—"}</span>
+                <span>${fmtMoney(totalProfit)}</span>
+                <span class="text-slate-400">${t.reason || ""}</span>
+              </div>`;
+            }).join("");
+            backtestTradesEl.innerHTML = header + rows;
+          }
+        }
+      }
+
+      if (backtestStrategyEl) {
+        backtestStrategyEl.addEventListener("change", updateBacktestParamsVisibility);
+      }
+      if (btnRunBacktest) {
+        btnRunBacktest.addEventListener("click", runBacktest);
+      }
+      if (backtestRangeButtons.length) {
+        backtestRangeButtons.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const years = Number(btn.dataset.backtestRange || 0);
+            setBacktestRange(years);
+          });
+        });
+      }
+      if (btnAddLive) {
+        btnAddLive.addEventListener("click", async () => {
+          if (!lastBacktestPayload) {
+            showToast("请先运行一次回测", "error");
+            return;
+          }
+          const idx = allIndices.find(i => i.id === lastBacktestPayload.index_id);
+          const strategyName = (function() {
+            const map = {
+              dca: "定投",
+              smart_dca: "智能定投",
+              mean_reversion: "均值回归",
+              mean_reversion_multi: "多轮均值回归",
+              ma_diff: "均值差策略",
+              trend_following: "趋势跟随",
+            };
+            return map[lastBacktestPayload.strategy] || lastBacktestPayload.strategy;
+          })();
+          const name = `${(idx && (idx.name || idx.code)) || "策略"}-${strategyName}`;
+          try {
+            await apiFetch("/live_strategies/from_backtest", {
+              method: "POST",
+              body: JSON.stringify({ name, backtest: lastBacktestPayload }),
+            });
+            showToast("已添加到实盘策略", "success");
+          } catch (e) {
+            showToast(e.message || "添加失败", "error");
+          }
+        });
+      }
+      if (chkBacktestPriceEl) {
+        chkBacktestPriceEl.addEventListener("change", () => {
+          if (lastBacktestResult) updateBacktestChart(lastBacktestResult);
+        });
+      }
+
       window.addEventListener("load", async () => {
         initChart();
         initMaDiffChart();
+        initBacktestChart();
         await loadIndices();
-        // 默认显示指数趋势分析
-        switchTab("price-trend");
+        const applied = applyBacktestDraft();
+        if (applied) {
+          showToast("已载入实盘策略到回测参数", "success");
+          switchTab("backtest");
+        } else {
+          // 默认显示指数趋势分析
+          switchTab("price-trend");
+        }
+        updateBacktestParamsVisibility();
       });
     </script>
   </body>

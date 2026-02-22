@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>监控看板 - 基金指数分析系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <header class="border-b border-slate-800 pb-2 mb-4">
+        <div class="flex items-center justify-between">
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight">基金指数分析系统</h1>
+          <nav class="flex rounded-full bg-slate-900/80 border border-slate-800 p-1 text-sm">
+            <a href="/" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">指数分析</a>
+            <a href="/static/sync.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">基础数据</a>
+            <a href="/static/db.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">数据管理</a>
+            <a href="/static/live.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">实盘策略</a>
+            <a href="/static/contacts.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-200 hover:bg-slate-800/80">联系人管理</a>
+            <a href="/static/monitor.html" class="px-3 sm:px-4 py-1.5 rounded-full font-medium bg-slate-100 text-slate-900 shadow-sm">监控看板</a>
+          </nav>
+        </div>
+      </header>
+
+      <section class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-100">当日变化</h2>
+            <p id="dashboard-date" class="text-xs text-slate-400 mt-0.5">—</p>
+          </div>
+          <button id="btn-refresh" class="text-xs text-indigo-400 hover:text-indigo-300">刷新</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div class="rounded-md border border-slate-800 bg-slate-950/50 p-3">
+            <div class="text-xs text-slate-400">指数总数</div>
+            <div id="stat-total" class="text-lg font-semibold">—</div>
+          </div>
+          <div class="rounded-md border border-slate-800 bg-slate-950/50 p-3">
+            <div class="text-xs text-slate-400">上涨</div>
+            <div id="stat-up" class="text-lg font-semibold text-emerald-400">—</div>
+          </div>
+          <div class="rounded-md border border-slate-800 bg-slate-950/50 p-3">
+            <div class="text-xs text-slate-400">下跌</div>
+            <div id="stat-down" class="text-lg font-semibold text-rose-400">—</div>
+          </div>
+          <div class="rounded-md border border-slate-800 bg-slate-950/50 p-3">
+            <div class="text-xs text-slate-400">平盘</div>
+            <div id="stat-flat" class="text-lg font-semibold text-slate-200">—</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="overflow-x-auto border border-slate-800/80 rounded-md">
+            <table class="min-w-full text-xs text-left text-slate-200">
+              <thead class="bg-slate-900/95 border-b border-slate-800">
+                <tr>
+                  <th class="px-3 py-2 font-medium">上涨前五</th>
+                  <th class="px-3 py-2 font-medium">涨跌幅</th>
+                  <th class="px-3 py-2 font-medium">收盘价</th>
+                </tr>
+              </thead>
+              <tbody id="gainers-body" class="divide-y divide-slate-800/80">
+                <tr><td colspan="3" class="px-3 py-4 text-center text-slate-400">暂无数据</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="overflow-x-auto border border-slate-800/80 rounded-md">
+            <table class="min-w-full text-xs text-left text-slate-200">
+              <thead class="bg-slate-900/95 border-b border-slate-800">
+                <tr>
+                  <th class="px-3 py-2 font-medium">下跌前五</th>
+                  <th class="px-3 py-2 font-medium">涨跌幅</th>
+                  <th class="px-3 py-2 font-medium">收盘价</th>
+                </tr>
+              </thead>
+              <tbody id="losers-body" class="divide-y divide-slate-800/80">
+                <tr><td colspan="3" class="px-3 py-4 text-center text-slate-400">暂无数据</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-100">风险预警</h2>
+          <p class="text-xs text-slate-400 mt-0.5">基于当日涨跌幅与均线偏差阈值。</p>
+        </div>
+        <div class="overflow-x-auto border border-slate-800/80 rounded-md">
+          <table class="min-w-full text-xs text-left text-slate-200">
+            <thead class="bg-slate-900/95 border-b border-slate-800">
+              <tr>
+                <th class="px-3 py-2 font-medium">指数</th>
+                <th class="px-3 py-2 font-medium">原因</th>
+                <th class="px-3 py-2 font-medium">涨跌幅</th>
+                <th class="px-3 py-2 font-medium">MA60偏差</th>
+              </tr>
+            </thead>
+            <tbody id="risk-body" class="divide-y divide-slate-800/80">
+              <tr><td colspan="4" class="px-3 py-4 text-center text-slate-400">暂无预警</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-100">策略待处理事项</h2>
+          <p class="text-xs text-slate-400 mt-0.5">展示当日触发买卖信号的实盘策略。</p>
+        </div>
+        <div class="overflow-x-auto border border-slate-800/80 rounded-md">
+          <table class="min-w-full text-xs text-left text-slate-200">
+            <thead class="bg-slate-900/95 border-b border-slate-800">
+              <tr>
+                <th class="px-3 py-2 font-medium">策略</th>
+                <th class="px-3 py-2 font-medium">指数</th>
+                <th class="px-3 py-2 font-medium">动作</th>
+                <th class="px-3 py-2 font-medium">说明</th>
+              </tr>
+            </thead>
+            <tbody id="todo-body" class="divide-y divide-slate-800/80">
+              <tr><td colspan="4" class="px-3 py-4 text-center text-slate-400">暂无待处理事项</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div id="toast-container" class="fixed inset-x-0 top-4 flex justify-center pointer-events-none"></div>
+    </div>
+
+    <script>
+      const apiBase = "";
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toast-container");
+        const el = document.createElement("div");
+        el.className =
+          "pointer-events-auto rounded-md px-4 py-2 text-sm shadow-lg border " +
+          (type === "error"
+            ? "bg-red-900/90 border-red-600 text-red-100"
+            : type === "success"
+            ? "bg-emerald-900/90 border-emerald-600 text-emerald-100"
+            : "bg-slate-900/90 border-slate-700 text-slate-100");
+        el.textContent = message;
+        container.appendChild(el);
+        setTimeout(() => {
+          el.classList.add("opacity-0", "translate-y-2");
+          el.addEventListener("transitionend", () => el.remove(), { once: true });
+        }, 2500);
+      }
+
+      async function apiFetch(path, options = {}) {
+        const resp = await fetch(apiBase + path, {
+          headers: { "Content-Type": "application/json", ...options.headers },
+          ...options,
+        });
+        if (!resp.ok) {
+          let detail = "";
+          try {
+            const data = await resp.json();
+            detail = data.detail || JSON.stringify(data);
+          } catch (e) {
+            detail = resp.statusText;
+          }
+          throw new Error(detail || `请求失败：${resp.status}`);
+        }
+        if (resp.status === 204) return null;
+        try {
+          return await resp.json();
+        } catch (e) {
+          return null;
+        }
+      }
+
+      const elDate = document.getElementById("dashboard-date");
+      const elTotal = document.getElementById("stat-total");
+      const elUp = document.getElementById("stat-up");
+      const elDown = document.getElementById("stat-down");
+      const elFlat = document.getElementById("stat-flat");
+      const gainersBody = document.getElementById("gainers-body");
+      const losersBody = document.getElementById("losers-body");
+      const riskBody = document.getElementById("risk-body");
+      const todoBody = document.getElementById("todo-body");
+      const btnRefresh = document.getElementById("btn-refresh");
+
+      const fmtPct = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : Number(v).toFixed(2) + "%");
+      const fmtMoney = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 }));
+
+      function renderTable(bodyEl, rows, emptyText, cols) {
+        if (!rows || rows.length === 0) {
+          bodyEl.innerHTML = `<tr><td colspan="${cols}" class="px-3 py-4 text-center text-slate-400">${emptyText}</td></tr>`;
+          return;
+        }
+        bodyEl.innerHTML = rows.join("");
+      }
+
+      async function loadDashboard() {
+        try {
+          const data = await apiFetch("/monitor/dashboard");
+          const summary = data.daily_summary || {};
+          elDate.textContent = summary.date ? `日期：${summary.date}` : "—";
+          elTotal.textContent = summary.total_indices ?? "—";
+          elUp.textContent = summary.up_count ?? "—";
+          elDown.textContent = summary.down_count ?? "—";
+          elFlat.textContent = summary.flat_count ?? "—";
+
+          renderTable(
+            gainersBody,
+            (summary.top_gainers || []).map((i) =>
+              `<tr><td class="px-3 py-2">${i.index_name}（${i.index_code}）</td><td class="px-3 py-2 text-emerald-400">${fmtPct(i.change_pct)}</td><td class="px-3 py-2">${fmtMoney(i.close)}</td></tr>`
+            ),
+            "暂无数据",
+            3
+          );
+          renderTable(
+            losersBody,
+            (summary.top_losers || []).map((i) =>
+              `<tr><td class="px-3 py-2">${i.index_name}（${i.index_code}）</td><td class="px-3 py-2 text-rose-400">${fmtPct(i.change_pct)}</td><td class="px-3 py-2">${fmtMoney(i.close)}</td></tr>`
+            ),
+            "暂无数据",
+            3
+          );
+
+          renderTable(
+            riskBody,
+            (data.risk_alerts || []).map((r) =>
+              `<tr><td class="px-3 py-2">${r.index_name}（${r.index_code}）</td><td class="px-3 py-2">${r.reason}</td><td class="px-3 py-2 text-rose-300">${fmtPct(r.change_pct)}</td><td class="px-3 py-2">${fmtMoney(r.ma60_diff)}</td></tr>`
+            ),
+            "暂无预警",
+            4
+          );
+
+          renderTable(
+            todoBody,
+            (data.strategy_todos || []).map((t) =>
+              `<tr><td class="px-3 py-2">${t.name}</td><td class="px-3 py-2">${t.index_name}（${t.index_code}）</td><td class="px-3 py-2 ${t.action === "buy" ? "text-emerald-400" : "text-rose-400"}">${t.action}</td><td class="px-3 py-2">${t.detail || ""}</td></tr>`
+            ),
+            "暂无待处理事项",
+            4
+          );
+        } catch (e) {
+          showToast(e.message || "加载失败", "error");
+        }
+      }
+
+      btnRefresh.addEventListener("click", loadDashboard);
+      loadDashboard();
+    </script>
+  </body>
+</html>

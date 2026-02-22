@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
+import random
 import sys
+import time
 from contextlib import contextmanager
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Iterable, Optional
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import pandas as pd
 import requests
@@ -21,6 +24,88 @@ from .config import (
 )
 from .database import TZ_SHANGHAI, log_timestamp
 from .models import Index, IndexPrice
+
+_VALID_YAHOO_PROXY: Optional[str] = None
+_PROXY_CHECKED = False
+
+
+def _validate_proxy(proxy: str) -> bool:
+    if not proxy:
+        return False
+    test_url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d&range=5d"
+    try:
+        resp = requests.get(
+            test_url,
+            timeout=6,
+            proxies={"http": proxy, "https": proxy},
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        return resp.status_code < 500
+    except Exception as exc:
+        _fetch_log.warning("[同步] 代理连通性验证失败: %s", exc)
+        return False
+
+
+def _resolve_yahoo_proxy() -> Optional[str]:
+    global _VALID_YAHOO_PROXY, _PROXY_CHECKED
+    if _PROXY_CHECKED:
+        return _VALID_YAHOO_PROXY
+    _PROXY_CHECKED = True
+    proxy = os.environ.get("YFINANCE_PROXY", "").strip()
+    if not proxy:
+        return None
+    if _validate_proxy(proxy):
+        _VALID_YAHOO_PROXY = proxy
+        return proxy
+    _fetch_log.warning("[同步] YFINANCE_PROXY 无法连通，已忽略: %s", proxy)
+    return None
+
+
+# 抓取日志（用于同步时输出异常）
+_fetch_log = logging.getLogger("fund_analyzer.fetcher")
+if not _fetch_log.handlers:
+    _h = logging.StreamHandler(sys.stderr)
+    _h.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+    _fetch_log.addHandler(_h)
+    _fetch_log.setLevel(logging.INFO)
+
+
+def _log_response(label: str, text: str, limit: int = 1200) -> None:
+    """
+    打印接口响应摘要（避免过大刷屏）。
+    """
+    if text is None:
+        _fetch_log.info("[同步] %s 响应: <empty>", label)
+        return
+    try:
+        payload = json.loads(text)
+    except (TypeError, ValueError):
+        payload = None
+    else:
+        if _is_success_payload(payload):
+            return
+    snippet = text if len(text) <= limit else text[:limit] + "...(truncated)"
+    _fetch_log.info("[同步] %s 响应: %s", label, snippet)
+
+
+def _is_success_payload(payload: object) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("success") is True:
+        return True
+    code = payload.get("code")
+    msg = payload.get("msg")
+    if (code == 200 or str(code) == "200") and isinstance(msg, str) and msg.lower() == "success":
+        return True
+    chart = payload.get("chart")
+    if isinstance(chart, dict) and chart.get("error") is None:
+        return True
+    if isinstance(payload.get("observations"), list):
+        return True
+    for key in payload.keys():
+        if isinstance(key, str) and "time series" in key.lower():
+            return True
+    return False
 
 
 def _compute_change_pct(df: pd.DataFrame) -> pd.DataFrame:
@@ -104,7 +189,9 @@ def _fetch_history_from_csindex(
             payload = resp.json()
         except ValueError:
             return pd.DataFrame()
-    except Exception:
+        _log_response(f"CSIndex {index_code}", resp.text)
+    except Exception as e:
+        _fetch_log.warning("[同步] 中证接口获取失败 %s: %s", index_code, e)
         return pd.DataFrame()
 
     # 检查 payload 格式
@@ -168,19 +255,22 @@ def _fetch_history_from_yahoo_chart_api(
     period1 = int(datetime(start.year, start.month, start.day, tzinfo=TZ_SHANGHAI).timestamp())
     period2 = int(datetime(end.year, end.month, end.day, 23, 59, 59, tzinfo=TZ_SHANGHAI).timestamp())
 
-    proxy = os.environ.get("YFINANCE_PROXY", "").strip()
+    proxy = _resolve_yahoo_proxy()
     proxies = {"http": proxy, "https": proxy} if proxy else None
 
     def _try_fetch(ticker: str) -> pd.DataFrame:
+        ticker_enc = quote(ticker, safe="")
         url = (
             "https://query1.finance.yahoo.com/v8/finance/chart/"
-            f"{ticker}?interval=1d&period1={period1}&period2={period2}"
+            f"{ticker_enc}?interval=1d&period1={period1}&period2={period2}"
         )
         try:
             resp = requests.get(url, timeout=15, proxies=proxies)
             resp.raise_for_status()
             data = resp.json()
-        except Exception:
+            _log_response(f"Yahoo Chart {ticker}", resp.text)
+        except Exception as e:
+            _fetch_log.warning("[同步] Yahoo Chart 获取失败 %s: %s", ticker, e)
             return pd.DataFrame()
         chart = data.get("chart") or {}
         result_list = chart.get("result")
@@ -188,10 +278,10 @@ def _fetch_history_from_yahoo_chart_api(
             return pd.DataFrame()
         r = result_list[0]
         timestamps = r.get("timestamp")
-        quote = (r.get("indicators") or {}).get("quote")
-        if not quote:
+        quote_list = (r.get("indicators") or {}).get("quote")
+        if not quote_list:
             return pd.DataFrame()
-        closes = quote[0].get("close")
+        closes = quote_list[0].get("close")
         if not timestamps or not closes or len(timestamps) != len(closes):
             return pd.DataFrame()
         records = []
@@ -213,7 +303,13 @@ def _fetch_history_from_yahoo_chart_api(
             return pd.DataFrame()
         return pd.DataFrame(records)
 
+    yahoo_symbol_map = {
+        "NASDAQCOM": "^IXIC",
+        "SP500": "^GSPC",
+        "DJIA": "^DJI",
+    }
     ticker = symbol.strip().upper()
+    ticker = yahoo_symbol_map.get(ticker, ticker)
     df = _try_fetch(ticker)
     if not df.empty:
         return df
@@ -236,17 +332,18 @@ def _fetch_history_from_yfinance(
     使用 yfinance 获取历史收盘价。中证无数据时可作备选。
     支持 A 股指数（如 000300.SS、399006.SZ）、美股等。若 symbol 为纯数字则尝试 .SS / .SZ 后缀。
     """
-    # 仅当显式设置 YFINANCE_PROXY 时才走代理，避免本地未开代理时 Connection refused
-    proxy = os.environ.get("YFINANCE_PROXY", "").strip()
+    # 仅当显式设置 YFINANCE_PROXY 且验证可用时才走代理，避免本地未开代理时 Connection refused
+    proxy = _resolve_yahoo_proxy()
     if proxy:
         os.environ["HTTP_PROXY"] = proxy
         os.environ["HTTPS_PROXY"] = proxy
     try:
         import yfinance as yf
         try:
-            from yfinance.exceptions import YFException
+            from yfinance.exceptions import YFException, YFRateLimitError
         except ImportError:
             YFException = Exception
+            YFRateLimitError = type("YFRateLimitError", (Exception,), {})
     except ImportError:
         return pd.DataFrame()
     # 抑制 yfinance 的 "Failed download" 等日志，仅保留 ERROR
@@ -280,18 +377,46 @@ def _fetch_history_from_yfinance(
             sys.stdout, sys.stderr = old_out, old_err
             _yf_logger.setLevel(old_level)
 
+    def _is_rate_limit_error(e: Exception) -> bool:
+        """判断是否为 Yahoo 限流（429）或频率限制类错误，用于触发重试。"""
+        if isinstance(e, YFRateLimitError):
+            return True
+        msg = (getattr(e, "message", None) or str(e)).lower()
+        return "429" in msg or "rate limit" in msg or "too many request" in msg or "请求过于频繁" in msg
+
+    def _log_df(label: str, df: Optional[pd.DataFrame]) -> None:
+        return
+
     def _try_download(ticker: str) -> pd.DataFrame:
-        try:
-            with _quiet():
-                df = yf.download(
-                    ticker,
-                    start=start_str,
-                    end=end_str,
-                    progress=False,
-                    auto_adjust=False,
-                    threads=False,
-                )
-        except (YFException, Exception):
+        max_retries = 3
+        backoff_secs = [1, 2, 4]
+        last_error: Optional[Exception] = None
+        for attempt in range(max_retries):
+            try:
+                with _quiet():
+                    df = yf.download(
+                        ticker,
+                        start=start_str,
+                        end=end_str,
+                        progress=False,
+                        auto_adjust=False,
+                        threads=False,
+                    )
+            except (YFException, Exception) as e:
+                last_error = e
+                if attempt < max_retries - 1 and _is_rate_limit_error(e):
+                    wait = backoff_secs[attempt]
+                    _fetch_log.info("[同步] yfinance 限流 %s，%s 秒后重试（%d/%d）", ticker, wait, attempt + 1, max_retries)
+                    time.sleep(wait)
+                    continue
+                _fetch_log.warning("[同步] yfinance 获取失败 %s: %s", ticker, e)
+                return pd.DataFrame()
+            else:
+                _log_df("raw_response", df)
+                break
+        else:
+            if last_error is not None:
+                _fetch_log.warning("[同步] yfinance 获取失败 %s（已达最大重试）: %s", ticker, last_error)
             return pd.DataFrame()
         if df is None or df.empty:
             return pd.DataFrame()
@@ -305,16 +430,21 @@ def _fetch_history_from_yfinance(
         df["trade_date"] = df.index.date
         df = df[["trade_date", "close"]].dropna(subset=["close"])
         df["pe_ratio"] = None
+        _log_df("normalized_response", df)
         return df[["trade_date", "close", "pe_ratio"]].reset_index(drop=True)
 
     ticker = symbol.strip().upper()
+    # 请求间随机延迟，降低 Yahoo 限流（429）概率
+    time.sleep(random.uniform(1.0, 3.0))
     df = _try_download(ticker)
     if not df.empty:
         return df
     if ticker.isdigit() and len(ticker) == 6:
+        time.sleep(random.uniform(1.0, 3.0))
         df = _try_download(ticker + ".SS")
         if not df.empty:
             return df
+        time.sleep(random.uniform(1.0, 3.0))
         df = _try_download(ticker + ".SZ")
         if not df.empty:
             return df
@@ -356,7 +486,10 @@ def _fetch_history_from_fred(
         resp = requests.get(url, params=params, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
         resp.raise_for_status()
         payload = resp.json()
-    except Exception:
+        _log_response(f"AlphaVantage {symbol_av}", resp.text)
+        _log_response(f"FRED {series_id}", resp.text)
+    except Exception as e:
+        _fetch_log.warning("[同步] FRED 获取失败 %s: %s", series_id, e)
         return pd.DataFrame()
 
     obs = payload.get("observations") if isinstance(payload, dict) else None
@@ -449,7 +582,8 @@ def _fetch_history_from_alphavantage(
         resp = requests.get(url, params=params, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
         resp.raise_for_status()
         payload = resp.json()
-    except Exception:
+    except Exception as e:
+        _fetch_log.warning("[同步] AlphaVantage 获取失败 %s: %s", symbol_av, e)
         return pd.DataFrame()
     if not isinstance(payload, dict):
         return pd.DataFrame()
@@ -552,6 +686,10 @@ def fetch_history_for_index(
         elif index_obj.start_date is not None:
             start = index_obj.start_date
 
+    # 美股指数若无起始日期，默认拉取最近 5 年
+    if start is None and (symbol in FRED_US_INDICES or symbol in ALPHA_VANTAGE_SYMBOL_MAP):
+        start = today - timedelta(days=365 * 5)
+
     # 确保结束日期不早于开始日期
     if start is not None and end is not None and start > end:
         return 0, None
@@ -560,30 +698,56 @@ def fetch_history_for_index(
     if start is not None and start > today:
         return 0, None
 
-    # 美股指数：优先 FRED，若无数据则尝试 Alpha Vantage（需配置 ALPHA_VANTAGE_API_KEY）
+    # 数据源选择：若配置了 source 则仅使用该数据源；未配置则按默认顺序全尝试
     df = pd.DataFrame()
     source = None
-    if symbol in FRED_US_INDICES and FRED_API_KEY:
-        df = _fetch_history_from_fred(symbol, start=start, end=end)
-        if not df.empty:
-            source = "fred"
-    if df.empty and symbol in ALPHA_VANTAGE_SYMBOL_MAP and ALPHA_VANTAGE_API_KEY:
-        av_symbol = ALPHA_VANTAGE_SYMBOL_MAP[symbol]
-        df = _fetch_history_from_alphavantage(av_symbol, start=start, end=end)
-        if not df.empty:
-            source = "alphavantage"
-    if df.empty:
-        df = _fetch_history_from_csindex(symbol, start=start, end=end)
-        if not df.empty:
-            source = "csindex"
-    if df.empty:
-        df = _fetch_history_from_yahoo_chart_api(symbol, start=start, end=end)
-        if not df.empty:
-            source = "yahoo_chart"
-    if df.empty:
-        df = _fetch_history_from_yfinance(symbol, start=start, end=end)
-        if not df.empty:
-            source = "yfinance"
+    source_pref = (index_obj.source or "").strip().lower()
+    if source_pref in ("", "all"):
+        if symbol in FRED_US_INDICES and FRED_API_KEY:
+            df = _fetch_history_from_fred(symbol, start=start, end=end)
+            if not df.empty:
+                source = "fred"
+        if df.empty and symbol in ALPHA_VANTAGE_SYMBOL_MAP and ALPHA_VANTAGE_API_KEY:
+            av_symbol = ALPHA_VANTAGE_SYMBOL_MAP[symbol]
+            df = _fetch_history_from_alphavantage(av_symbol, start=start, end=end)
+            if not df.empty:
+                source = "alphavantage"
+        if df.empty:
+            df = _fetch_history_from_csindex(symbol, start=start, end=end)
+            if not df.empty:
+                source = "csindex"
+        if df.empty:
+            df = _fetch_history_from_yahoo_chart_api(symbol, start=start, end=end)
+            if not df.empty:
+                source = "yahoo_chart"
+        if df.empty:
+            df = _fetch_history_from_yfinance(symbol, start=start, end=end)
+            if not df.empty:
+                source = "yfinance"
+    else:
+        if source_pref == "fred":
+            if symbol in FRED_US_INDICES and FRED_API_KEY:
+                df = _fetch_history_from_fred(symbol, start=start, end=end)
+                if not df.empty:
+                    source = "fred"
+        elif source_pref in ("alphavantage", "alpha_vantage"):
+            if symbol in ALPHA_VANTAGE_SYMBOL_MAP and ALPHA_VANTAGE_API_KEY:
+                av_symbol = ALPHA_VANTAGE_SYMBOL_MAP[symbol]
+                df = _fetch_history_from_alphavantage(av_symbol, start=start, end=end)
+                if not df.empty:
+                    source = "alphavantage"
+        elif source_pref in ("csindex", "csi"):
+            df = _fetch_history_from_csindex(symbol, start=start, end=end)
+            if not df.empty:
+                source = "csindex"
+        elif source_pref in ("yahoo", "yahoo_chart", "yahoochart"):
+            df = _fetch_history_from_yahoo_chart_api(symbol, start=start, end=end)
+            if not df.empty:
+                source = "yahoo_chart"
+        elif source_pref == "yfinance":
+            df = _fetch_history_from_yfinance(symbol, start=start, end=end)
+            if not df.empty:
+                source = "yfinance"
     if df.empty:
         return 0, None
 
